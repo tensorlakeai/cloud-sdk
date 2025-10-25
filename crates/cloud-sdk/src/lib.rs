@@ -9,15 +9,17 @@
 //! ```rust
 //! use cloud_sdk::Sdk;
 //!
-//! // Create the SDK client
-//! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
+//! async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create the SDK client
+//!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
 //!
-//! // Get the applications client
-//! let apps_client = sdk.applications();
+//!     // Get the applications client
+//!     let apps_client = sdk.applications();
 //!
-//! // List applications in the default namespace
-//! // let apps = apps_client.list("default", None, None, None).await?;
-//! // println!("Found {} applications", apps.applications.len());
+//!     // List applications in the default namespace
+//!     apps_client.list("default", None, None, None).await?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Authentication
@@ -35,31 +37,34 @@
 //!
 //! - [`ApplicationsClient`](applications::ApplicationsClient): Manage applications, functions, and requests
 //! - [`ImagesClient`](images::ImagesClient): Build and manage container images
+//! - [`SecretsClient`](secrets::SecretsClient): Manage secrets for secure configuration
 //!
 //! ## Error Handling
 //!
 //! The SDK provides detailed error types for different scenarios:
 //!
-//! ```rust,no_run
+//! ```rust
 //! use cloud_sdk::Sdk;
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
-//! let apps_client = sdk.applications();
+//!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
+//!     let apps_client = sdk.applications();
 //!
-//! match apps_client.list("default", None, None, None).await {
-//!     Ok(apps) => println!("Success: {:?}", apps.applications.len()),
-//!     Err(e) => eprintln!("Error: {}", e),
-//! }
-//! Ok(())
+//!     match apps_client.list("default", None, None, None).await {
+//!         Ok(apps) => println!("Success: {:?}", apps.applications.len()),
+//!         Err(e) => eprintln!("Error: {}", e),
+//!     }
+//!     Ok(())
 //! }
 //! ```
 
 pub mod applications;
 pub mod event_source;
 pub mod images;
+pub mod secrets;
 use applications::*;
 use images::*;
+use secrets::*;
 
 mod client;
 pub use client::*;
@@ -71,16 +76,14 @@ pub use client::*;
 ///
 /// ## Example
 ///
-/// ```rust,no_run
+/// ```rust
 /// use cloud_sdk::Sdk;
 ///
-/// fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
 ///
 /// // Access different service clients
 /// let apps_client = sdk.applications();
-/// Ok(())
-/// }
+/// let secrets_client = sdk.secrets();
 /// ```
 #[derive(Debug)]
 pub struct Sdk {
@@ -105,13 +108,13 @@ impl Sdk {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// use cloud_sdk::Sdk;
     ///
-    /// fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
     /// Ok(())
-    /// }
+    /// # }
     /// ```
     pub fn new(base_url: &str, bearer_token: &str) -> miette::Result<Self> {
         let client = Client::new(base_url, bearer_token)?;
@@ -131,16 +134,16 @@ impl Sdk {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// use cloud_sdk::Sdk;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
-    /// let apps_client = sdk.applications();
+    ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let apps_client = sdk.applications();
     ///
-    /// // Use the applications client
-    /// let apps = apps_client.list("default", None, None, None).await?;
-    /// Ok(())
+    ///     // Use the applications client
+    ///     apps_client.list("default", None, None, None).await?;
+    ///     Ok(())
     /// }
     /// ```
     pub fn applications(&self) -> ApplicationsClient {
@@ -159,19 +162,45 @@ impl Sdk {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// use cloud_sdk::Sdk;
     ///
-    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
     /// let images_client = sdk.images();
     ///
     /// // Use the images client
     /// // let result = images_client.build_image(request).await?;
-    /// Ok(())
-    /// }
     /// ```
     pub fn images(&self) -> ImagesClient {
         ImagesClient::new(self.client.clone())
+    }
+
+    /// Get a client for managing secrets.
+    ///
+    /// This method returns a [`SecretsClient`] that provides methods for:
+    /// - Creating, updating, and deleting secrets
+    /// - Listing secrets in a project
+    /// - Retrieving individual secret details
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`SecretsClient`] instance configured with the SDK's authentication.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::Sdk;
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let secrets_client = sdk.secrets();
+    ///
+    ///     // Use the secrets client
+    ///     secrets_client.list("org-id", "project-id", None, None, None).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn secrets(&self) -> SecretsClient {
+        SecretsClient::new(self.client.clone())
     }
 }

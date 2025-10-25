@@ -57,7 +57,7 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust
     /// use cloud_sdk::{Client, images::ImagesClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -92,10 +92,12 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
-    /// use cloud_sdk::images::{ImagesClient, models::ImageBuildRequest};
+    /// ```rust
+    /// use cloud_sdk::{Client, images::{ImagesClient, models::ImageBuildRequest}};
     ///
-    /// async fn example(images_client: &ImagesClient) -> Result<(), Box<dyn std::error::Error>> {
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let images_client = ImagesClient::new(client);
     ///     let request = ImageBuildRequest {
     ///         image_name: "my-image".to_string(),
     ///         image_tag: "v1.0".to_string(),
@@ -105,8 +107,7 @@ impl ImagesClient {
     ///         function_name: "main".to_string(),
     ///     };
     ///
-    ///     let result = images_client.build_image(request).await?;
-    ///     println!("Build {} completed successfully", result.id);
+    ///     images_client.build_image(request).await?;
     ///     Ok(())
     /// }
     /// ```
@@ -242,6 +243,19 @@ impl ImagesClient {
     /// # Errors
     ///
     /// Returns an error if the request fails or the response cannot be parsed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::{Client, images::ImagesClient};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let images_client = ImagesClient::new(client);
+    ///     images_client.list_builds(Some(1), Some(25), None, None, None, None).await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn list_builds(
         &self,
         page: Option<i32>,
@@ -333,6 +347,19 @@ impl ImagesClient {
     /// # Errors
     ///
     /// Returns an error if the request fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::{Client, images::ImagesClient};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let images_client = ImagesClient::new(client);
+    ///     images_client.cancel_build("build-123").await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn cancel_build(&self, build_id: &str) -> miette::Result<()> {
         let url = format!("{}/builds/{build_id}/cancel", self.service_url);
 
@@ -374,6 +401,19 @@ impl ImagesClient {
     /// # Errors
     ///
     /// Returns an error if the request fails or the response cannot be parsed.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::{Client, images::ImagesClient};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let images_client = ImagesClient::new(client);
+    ///     images_client.get_build_info("build-123").await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn get_build_info(&self, build_id: &str) -> miette::Result<BuildInfoResponse> {
         let url = format!("{}/builds/{}", self.service_url, build_id);
 
@@ -418,6 +458,26 @@ impl ImagesClient {
     /// # Errors
     ///
     /// Returns an error if the request fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// use futures::StreamExt;
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let images_client = ImagesClient::new(client);
+    ///     let mut stream = images_client.stream_logs("build-123").await?;
+    ///     while let Some(log_entry) = stream.next().await {
+    ///         match log_entry {
+    ///             Ok(entry) => println!("Log: {:?}", entry),
+    ///             Err(e) => eprintln!("Error: {:?}", e),
+    ///         }
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn stream_logs(
         &self,
         build_id: &str,
