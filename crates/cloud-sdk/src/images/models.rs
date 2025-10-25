@@ -1,5 +1,79 @@
 use serde::{Deserialize, Serialize};
 
+/// Internal representation of build information from the API.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BuildInfo {
+    pub id: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub finished_at: Option<String>,
+    pub error_message: Option<String>,
+}
+
+/// Response for build info.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildInfoResponse {
+    /// The build ID.
+    pub id: String,
+    /// The build status.
+    pub status: BuildStatus,
+    /// Error message if failed.
+    pub error_message: Option<String>,
+    /// Creation time.
+    pub created_at: String,
+    /// Updated time.
+    pub updated_at: String,
+    /// Finished time.
+    pub finished_at: Option<String>,
+    /// Image hash.
+    pub image_hash: String,
+    /// Image name.
+    pub image_name: Option<String>,
+}
+
+/// Response for listing builds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildListResponse {
+    /// The public ID of the build.
+    pub public_id: String,
+    /// The name of the image.
+    pub name: String,
+    /// Tags associated with the build.
+    pub tags: Vec<String>,
+    /// The creation time of the build.
+    pub creation_time: String,
+    /// The status of the build.
+    pub status: BuildStatus,
+}
+
+/// The status of an image build.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildStatus {
+    /// The build is pending.
+    Pending,
+    /// The build is enqueued.
+    Enqueued,
+    /// The build is in progress.
+    Building,
+    /// The build completed successfully.
+    Succeeded,
+    /// The build failed.
+    Failed,
+    /// The build is being canceled.
+    Canceling,
+    /// The build was canceled.
+    Canceled,
+}
+
+/// Response for canceling a build.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CancelBuildResponse {
+    /// The status message.
+    pub status: String,
+}
+
 /// Request parameters for building an image.
 #[derive(Debug, Clone)]
 pub struct ImageBuildRequest {
@@ -32,110 +106,6 @@ pub struct ImageBuildResult {
     pub error_message: Option<String>,
 }
 
-/// The status of an image build.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BuildStatus {
-    /// The build is pending.
-    Pending,
-    /// The build is enqueued.
-    Enqueued,
-    /// The build is in progress.
-    Building,
-    /// The build completed successfully.
-    Succeeded,
-    /// The build failed.
-    Failed,
-    /// The build is being canceled.
-    Canceling,
-    /// The build was canceled.
-    Canceled,
-}
-
-/// Registry type for the image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RegistryType {
-    /// ECR registry.
-    ECR,
-    /// Docker registry.
-    Docker,
-}
-
-/// Response for listing builds.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BuildListResponse {
-    /// The public ID of the build.
-    pub public_id: String,
-    /// The name of the image.
-    pub name: String,
-    /// Tags associated with the build.
-    pub tags: Vec<String>,
-    /// The creation time of the build.
-    pub creation_time: String,
-    /// The status of the build.
-    pub status: BuildStatus,
-}
-
-/// Paginated page of build list responses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Page<T> {
-    /// The items in this page.
-    pub items: Vec<T>,
-    /// The total number of items.
-    pub total_items: i64,
-    /// The current page number.
-    pub page: i32,
-    /// The number of items per page.
-    pub page_size: i32,
-    /// The total number of pages.
-    pub total_pages: i32,
-}
-
-/// Response for canceling a build.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CancelBuildResponse {
-    /// The status message.
-    pub status: String,
-}
-
-/// Log entry for streaming logs.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogEntry {
-    /// The build ID.
-    pub build_id: String,
-    /// The timestamp of the log entry.
-    pub timestamp: String,
-    /// The stream type.
-    pub stream: String,
-    /// The log message.
-    pub message: String,
-    /// The sequence number.
-    pub sequence_number: i64,
-    /// The build status at the time of the log.
-    pub build_status: String,
-}
-
-/// Response for build info.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BuildInfoResponse {
-    /// The build ID.
-    pub id: String,
-    /// The build status.
-    pub status: BuildStatus,
-    /// Error message if failed.
-    pub error_message: Option<String>,
-    /// Creation time.
-    pub created_at: String,
-    /// Updated time.
-    pub updated_at: String,
-    /// Finished time.
-    pub finished_at: Option<String>,
-    /// Image hash.
-    pub image_hash: String,
-    /// Image name.
-    pub image_name: Option<String>,
-}
-
 /// Response for pulling an image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImagePullResponse {
@@ -161,13 +131,43 @@ pub struct ImagePullResponse {
     pub finished_at: Option<String>,
 }
 
-/// Internal representation of build information from the API.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BuildInfo {
-    pub id: String,
-    pub status: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub finished_at: Option<String>,
-    pub error_message: Option<String>,
+/// Log entry for streaming logs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEntry {
+    /// The build ID.
+    pub build_id: String,
+    /// The timestamp of the log entry.
+    pub timestamp: String,
+    /// The stream type.
+    pub stream: String,
+    /// The log message.
+    pub message: String,
+    /// The sequence number.
+    pub sequence_number: i64,
+    /// The build status at the time of the log.
+    pub build_status: String,
+}
+
+/// Paginated page of build list responses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Page<T> {
+    /// The items in this page.
+    pub items: Vec<T>,
+    /// The total number of items.
+    pub total_items: i64,
+    /// The current page number.
+    pub page: i32,
+    /// The number of items per page.
+    pub page_size: i32,
+    /// The total number of pages.
+    pub total_pages: i32,
+}
+
+/// Registry type for the image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RegistryType {
+    /// ECR registry.
+    ECR,
+    /// Docker registry.
+    Docker,
 }

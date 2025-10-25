@@ -133,25 +133,26 @@ async fn test_create_or_update_application() {
     let apps_client = ApplicationsClient::new(client);
 
     // Create a minimal Application for testing
-    let entrypoint = models::EntryPointManifest::new(
-        "main".to_string(),
-        "json".to_string(),
-        "json".to_string(),
-        "base64data".to_string(),
-    );
+    let entrypoint = models::EntryPointManifest {
+    function_name: "main".to_string(),
+    name: "json".to_string(),
+    version: "json".to_string(),
+    };
 
     let functions = HashMap::new();
     let tags = HashMap::new();
 
-    let app = models::Application::new(
-        "Test application".to_string(),
-        entrypoint,
-        functions,
-        "test-app".to_string(),
-        "default".to_string(),
-        tags,
-        "1.0.0".to_string(),
-    );
+    let app = models::Application {
+        created_at: None,
+    description: "Test application".to_string(),
+    entrypoint: Box::new(entrypoint),
+    functions,
+    name: "test-app".to_string(),
+    namespace: "default".to_string(),
+    tags,
+    tombstoned: None,
+        version: "1.0.0".to_string(),
+    };
 
     let zip_data = vec![0x50, 0x4B, 0x03, 0x04]; // Minimal ZIP header bytes
 
