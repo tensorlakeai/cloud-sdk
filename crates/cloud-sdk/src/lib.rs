@@ -45,7 +45,7 @@
 //! The SDK provides detailed error types for different scenarios:
 //!
 //! ```rust,no_run
-//! use cloud_sdk::{Sdk, applications::apis};
+//! use cloud_sdk::Sdk;
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();

@@ -24,7 +24,6 @@
 //! }
 //! ```
 
-pub mod apis;
 pub mod models;
 
 use bytes::Bytes;

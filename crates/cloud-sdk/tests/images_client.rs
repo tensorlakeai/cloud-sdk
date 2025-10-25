@@ -13,7 +13,6 @@ async fn test_simple_get() {
     let client = Client::new(&server.base_url(), "test-token").unwrap();
 
     let response = client
-        .http_client()
         .get(format!("{}/test", server.base_url()))
         .send()
         .await
