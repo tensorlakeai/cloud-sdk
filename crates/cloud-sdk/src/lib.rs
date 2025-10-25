@@ -1,6 +1,6 @@
 //! # Tensorlake Cloud SDK
 //!
-//! A comprehensive Rust SDK for interacting with Tensorlake Cloud APIs.
+//! A Rust SDK for interacting with Tensorlake Cloud APIs.
 //! This SDK provides a high-level, ergonomic interface for managing applications,
 //! functions, and execution requests in the Tensorlake Cloud platform.
 //!
@@ -38,6 +38,7 @@
 //! ## Available Clients
 //!
 //! - [`ApplicationsClient`](applications::ApplicationsClient): Manage applications, functions, and requests
+//! - [`ImagesClient`](images::ImagesClient): Build and manage container images
 //!
 //! ## Error Handling
 //!
@@ -52,19 +53,17 @@
 //!
 //! match apps_client.list("default", None, None, None).await {
 //!     Ok(apps) => println!("Success: {:?}", apps.applications.len()),
-//!     Err(apis::Error::Reqwest(e)) => eprintln!("Network error: {}", e),
-//!     Err(apis::Error::Serde(e)) => eprintln!("Serialization error: {}", e),
-//!     Err(apis::Error::ResponseError(content)) => {
-//!         eprintln!("API error {}: {}", content.status, content.content)
-//!     }
-//!     _ => eprintln!("Other error"),
+//!     Err(e) => eprintln!("Error: {}", e),
 //! }
 //! Ok(())
 //! }
 //! ```
 
 pub mod applications;
-pub use applications::*;
+pub mod event_source;
+pub mod images;
+use applications::*;
+use images::*;
 
 mod client;
 pub use client::*;
@@ -150,5 +149,33 @@ impl Sdk {
     /// ```
     pub fn applications(&self) -> ApplicationsClient {
         ApplicationsClient::new(self.client.clone())
+    }
+
+    /// Get a client for building and managing container images.
+    ///
+    /// This method returns an [`ImagesClient`] that provides methods for:
+    /// - Building container images from source code and Dockerfiles
+    /// - Monitoring build progress and status
+    ///
+    /// # Returns
+    ///
+    /// Returns an [`ImagesClient`] instance configured with the SDK's authentication.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use cloud_sdk::Sdk;
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
+    /// let images_client = sdk.images();
+    ///
+    /// // Use the images client
+    /// // let result = images_client.build_image(request).await?;
+    /// Ok(())
+    /// }
+    /// ```
+    pub fn images(&self) -> ImagesClient {
+        ImagesClient::new(self.client.clone())
     }
 }

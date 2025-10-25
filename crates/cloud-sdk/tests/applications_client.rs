@@ -1,6 +1,6 @@
 use cloud_sdk::{
-    applications::{models, ApplicationsClient},
     Client,
+    applications::{ApplicationsClient, models},
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -24,7 +24,7 @@ async fn test_invoke_application() {
     let apps_client = ApplicationsClient::new(client);
 
     let data = json!({"input": "hello"});
-    let result = apps_client.invoke("default", "test-app", Some(data)).await;
+    let result = apps_client.send_request("default", "test-app", data).await;
     assert!(result.is_ok());
 
     mock.assert();

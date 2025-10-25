@@ -1,4 +1,6 @@
 //! HTTP client that interacts with the Tensorlake Cloud API.
+use std::ops::Deref;
+
 use miette::{Context, IntoDiagnostic};
 use reqwest::header::HeaderMap;
 
@@ -40,9 +42,12 @@ impl Client {
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
+}
 
-    /// Get the HTTP client.
-    pub fn http_client(&self) -> &reqwest::Client {
+impl Deref for Client {
+    type Target = reqwest::Client;
+
+    fn deref(&self) -> &Self::Target {
         &self.client
     }
 }
