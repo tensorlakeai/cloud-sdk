@@ -42,6 +42,7 @@ use crate::client::Client;
 /// It wraps the raw API calls with a more ergonomic interface.
 #[derive(Debug)]
 pub struct ApplicationsClient {
+    service_url: String,
     client: Client,
 }
 
@@ -64,7 +65,10 @@ impl ApplicationsClient {
     /// }
     /// ```
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self {
+            service_url: format!("{}/v1/namespaces", client.base_url()),
+            client,
+        }
     }
 
     /// List all applications in a namespace.
@@ -82,15 +86,12 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
-    /// # use cloud_sdk::applications::ApplicationsClient;
-    /// # async fn example(apps_client: &ApplicationsClient) -> Result<(), Box<dyn std::error::Error>> {
-    /// let apps = apps_client.list("default", Some(10), None, None).await?;
-    /// for app in apps.applications {
-    ///     println!("Application: {}", app.name);
-    /// }
-    /// # Ok(())
-    /// # }
+    /// ```rust
+    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    ///
+    /// let client = Client::new("https://api.tensorlake.ai", "your-api-key").unwrap();
+    /// let apps_client = ApplicationsClient::new(client);
+    /// apps_client.list("default", Some(10), None, None);
     /// ```
     pub async fn list(
         &self,
@@ -99,10 +100,7 @@ impl ApplicationsClient {
         cursor: Option<&str>,
         direction: Option<models::CursorDirection>,
     ) -> miette::Result<models::ApplicationsList> {
-        let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications",
-            self.client.base_url(),
-        );
+        let uri_str = format!("{}/{namespace}/applications", self.service_url,);
         let mut req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
         if let Some(ref param_value) = limit {
@@ -141,13 +139,12 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
-    /// # use cloud_sdk::applications::ApplicationsClient;
-    /// # async fn example(apps_client: &ApplicationsClient) -> Result<(), Box<dyn std::error::Error>> {
-    /// let app = apps_client.get("default", "my-app").await?;
-    /// println!("Application version: {}", app.version);
-    /// # Ok(())
-    /// # }
+    /// ```rust
+    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    ///
+    /// let client = Client::new("https://api.tensorlake.ai", "your-api-key").unwrap();
+    /// let apps_client = ApplicationsClient::new(client);
+    /// apps_client.get("default", "my-app");
     /// ```
     pub async fn get(
         &self,
@@ -155,8 +152,8 @@ impl ApplicationsClient {
         application: &str,
     ) -> miette::Result<models::Application> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}",
+            self.service_url
         );
         let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
@@ -207,10 +204,7 @@ impl ApplicationsClient {
         let file_part = reqwest::multipart::Part::bytes(code_zip).file_name("code.zip");
         multipart_form = multipart_form.part("code", file_part);
 
-        let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications",
-            self.client.base_url()
-        );
+        let uri_str = format!("{}/{namespace}/applications", self.service_url);
         let req_builder = self
             .client
             .request(reqwest::Method::POST, &uri_str)
@@ -244,8 +238,8 @@ impl ApplicationsClient {
     /// ```
     pub async fn delete(&self, namespace: &str, application: &str) -> miette::Result<()> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}",
-            self.client.base_url()
+            "{}/{namespace}/applications/{application}",
+            self.service_url,
         );
         let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);
 
@@ -285,8 +279,8 @@ impl ApplicationsClient {
         body: serde_json::Value,
     ) -> miette::Result<()> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}",
+            self.service_url,
         );
         let mut req_builder = self.client.request(reqwest::Method::POST, &uri_str);
         req_builder = req_builder.json(&body);
@@ -333,8 +327,8 @@ impl ApplicationsClient {
         direction: Option<models::CursorDirection>,
     ) -> miette::Result<models::ApplicationRequests> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}/requests",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}/requests",
+            self.service_url,
         );
         let mut req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
@@ -385,8 +379,8 @@ impl ApplicationsClient {
         request_id: &str,
     ) -> miette::Result<()> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}/requests/{request_id}",
+            self.service_url,
         );
         let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);
 
@@ -432,8 +426,8 @@ impl ApplicationsClient {
         function_call_id: &str,
     ) -> miette::Result<models::DownloadOutput> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}",
+            self.service_url
         );
         let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
@@ -490,8 +484,8 @@ impl ApplicationsClient {
         request_id: &str,
     ) -> miette::Result<Option<models::DownloadOutput>> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output",
-            self.client.base_url(),
+            "{}/{namespace}/applications/{application}/requests/{request_id}/output",
+            self.service_url,
         );
         let req_builder = self.client.request(reqwest::Method::HEAD, &uri_str);
 

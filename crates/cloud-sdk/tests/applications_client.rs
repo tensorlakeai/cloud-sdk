@@ -134,9 +134,9 @@ async fn test_create_or_update_application() {
 
     // Create a minimal Application for testing
     let entrypoint = models::EntryPointManifest {
-    function_name: "main".to_string(),
-    name: "json".to_string(),
-    version: "json".to_string(),
+        function_name: "main".to_string(),
+        name: "json".to_string(),
+        version: "json".to_string(),
     };
 
     let functions = HashMap::new();
@@ -144,13 +144,13 @@ async fn test_create_or_update_application() {
 
     let app = models::Application {
         created_at: None,
-    description: "Test application".to_string(),
-    entrypoint: Box::new(entrypoint),
-    functions,
-    name: "test-app".to_string(),
-    namespace: "default".to_string(),
-    tags,
-    tombstoned: None,
+        description: "Test application".to_string(),
+        entrypoint: Box::new(entrypoint),
+        functions,
+        name: "test-app".to_string(),
+        namespace: "default".to_string(),
+        tags,
+        tombstoned: None,
         version: "1.0.0".to_string(),
     };
 

@@ -6,10 +6,9 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust
 //! use cloud_sdk::Sdk;
 //!
-//! fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create the SDK client
 //! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
 //!
@@ -19,9 +18,6 @@
 //! // List applications in the default namespace
 //! // let apps = apps_client.list("default", None, None, None).await?;
 //! // println!("Found {} applications", apps.applications.len());
-//!
-//! Ok(())
-//! }
 //! ```
 //!
 //! ## Authentication

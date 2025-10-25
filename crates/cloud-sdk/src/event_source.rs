@@ -25,6 +25,12 @@ pin_project! {
     }
 }
 
+impl<T> Default for SseDecoder<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> SseDecoder<T> {
     #[inline]
     pub fn new() -> SseDecoder<T> {

@@ -55,7 +55,10 @@ pub struct ApplicationFunction {
     pub cache_key: Option<String>,
     #[serde(rename = "description")]
     pub description: String,
-    #[serde(rename = "initialization_timeout_sec", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "initialization_timeout_sec",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub initialization_timeout_sec: Option<i32>,
     #[serde(rename = "max_concurrency")]
     pub max_concurrency: i32,
@@ -117,9 +120,9 @@ impl std::fmt::Display for CursorDirection {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DownloadOutput {
-pub content_length: Option<reqwest::header::HeaderValue>,
-pub content_type: Option<reqwest::header::HeaderValue>,
-pub content: bytes::Bytes,
+    pub content_length: Option<reqwest::header::HeaderValue>,
+    pub content_type: Option<reqwest::header::HeaderValue>,
+    pub content: bytes::Bytes,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]

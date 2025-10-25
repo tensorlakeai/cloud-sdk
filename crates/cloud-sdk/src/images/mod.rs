@@ -5,31 +5,26 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust
 //! use cloud_sdk::{Sdk, images::models::ImageBuildRequest};
 //!
-//! async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
-//!     let images_client = sdk.images();
+//! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
+//! let images_client = sdk.images();
 //!
-//!     // Build an image
-//!     let build_request = ImageBuildRequest {
-//!         image_name: "my-app".to_string(),
-//!         image_tag: "latest".to_string(),
-//!         context_data: vec![/* tar.gz context data */],
-//!         application_name: "my-app".to_string(),
-//!         application_version: "1.0.0".to_string(),
-//!         function_name: "main".to_string(),
-//!     };
+//! // Build an image
+//! let build_request = ImageBuildRequest {
+//!     image_name: "my-app".to_string(),
+//!     image_tag: "latest".to_string(),
+//!     context_data: vec![/* tar.gz context data */],
+//!     application_name: "my-app".to_string(),
+//!     application_version: "1.0.0".to_string(),
+//!     function_name: "main".to_string(),
+//! };
 //!
-//!     let build_result = images_client.build_image(build_request).await?;
-//!     println!("Build completed: {}", build_result.id);
-//!
-//!     Ok(())
-//! }
+//! images_client.build_image(build_request);
 //! ```
 
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::{
     client::Client,
@@ -48,8 +43,8 @@ use models::*;
 /// A client for managing image builds in Tensorlake Cloud.
 #[derive(Debug)]
 pub struct ImagesClient {
+    service_url: String,
     client: Client,
-    build_service_url: String,
 }
 
 impl ImagesClient {
@@ -73,7 +68,7 @@ impl ImagesClient {
     /// ```
     pub fn new(client: Client) -> Self {
         Self {
-            build_service_url: format!("{}/images/v2", client.base_url()),
+            service_url: format!("{}/images/v2", client.base_url()),
             client,
         }
     }
@@ -139,7 +134,7 @@ impl ImagesClient {
 
         let response = self
             .client
-            .put(format!("{}/builds", self.build_service_url))
+            .put(format!("{}/builds", self.service_url))
             .multipart(form)
             .send()
             .await
@@ -178,7 +173,7 @@ impl ImagesClient {
 
             let response = self
                 .client
-                .get(format!("{}/builds/{}", self.build_service_url, build_id))
+                .get(format!("{}/builds/{build_id}", self.service_url))
                 .send()
                 .await
                 .into_diagnostic()
@@ -256,7 +251,7 @@ impl ImagesClient {
         image_name: Option<&str>,
         graph_function_name: Option<&str>,
     ) -> miette::Result<Page<BuildListResponse>> {
-        let mut url = format!("{}/builds", self.build_service_url);
+        let mut url = format!("{}/builds", self.service_url);
 
         let mut query_params = Vec::new();
         if let Some(p) = page {
@@ -339,7 +334,7 @@ impl ImagesClient {
     ///
     /// Returns an error if the request fails.
     pub async fn cancel_build(&self, build_id: &str) -> miette::Result<()> {
-        let url = format!("{}/builds/{}/cancel", self.build_service_url, build_id);
+        let url = format!("{}/builds/{build_id}/cancel", self.service_url);
 
         let response = self
             .client
@@ -380,7 +375,7 @@ impl ImagesClient {
     ///
     /// Returns an error if the request fails or the response cannot be parsed.
     pub async fn get_build_info(&self, build_id: &str) -> miette::Result<BuildInfoResponse> {
-        let url = format!("{}/builds/{}", self.build_service_url, build_id);
+        let url = format!("{}/builds/{}", self.service_url, build_id);
 
         let response = self
             .client
@@ -427,7 +422,7 @@ impl ImagesClient {
         &self,
         build_id: &str,
     ) -> miette::Result<impl Stream<Item = Result<LogEntry, event_source::Error>>> {
-        let url = format!("{}/builds/{}/logs", self.build_service_url, build_id);
+        let url = format!("{}/builds/{}/logs", self.service_url, build_id);
 
         let response = self
             .client
@@ -441,10 +436,7 @@ impl ImagesClient {
         let decoder: SseDecoder<LogEntry> = SseDecoder::new();
         let stream = response.bytes_stream();
 
-        let frame = FramedRead::new(
-            StreamReader::new(stream.map_err(|e| Error::new(ErrorKind::Other, e))),
-            decoder,
-        );
+        let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
 
         Ok(frame.into_stream())
     }
