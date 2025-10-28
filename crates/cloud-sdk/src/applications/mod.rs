@@ -24,17 +24,17 @@
 //! }
 //! ```
 
+pub mod error;
 pub mod models;
 
 use bytes::Bytes;
-use miette::IntoDiagnostic;
 use reqwest::{
     Method, StatusCode,
     header::{CONTENT_LENGTH, CONTENT_TYPE},
     multipart::{Form, Part},
 };
 
-use crate::client::Client;
+use crate::{client::Client, error::SdkError};
 
 /// A client for interacting with Tensorlake Cloud applications.
 ///
@@ -98,7 +98,7 @@ impl ApplicationsClient {
         limit: Option<i32>,
         cursor: Option<&str>,
         direction: Option<models::CursorDirection>,
-    ) -> miette::Result<models::ApplicationsList> {
+    ) -> Result<models::ApplicationsList, SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications");
         let mut req_builder = self.client.request(Method::GET, &uri_str);
 
@@ -112,15 +112,11 @@ impl ApplicationsClient {
             req_builder = req_builder.query(&[("direction", &param_value.to_string())]);
         }
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to fetch applications");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let list = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let list = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(list)
     }
@@ -152,19 +148,15 @@ impl ApplicationsClient {
         &self,
         namespace: &str,
         application: &str,
-    ) -> miette::Result<models::Application> {
+    ) -> Result<models::Application, SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}",);
         let req_builder = self.client.request(Method::GET, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to retrieve application");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let app = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let app = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(app)
     }
@@ -198,10 +190,10 @@ impl ApplicationsClient {
         namespace: &str,
         application: models::Application,
         code_zip: Vec<u8>,
-    ) -> miette::Result<()> {
+    ) -> Result<(), SdkError> {
         let mut multipart_form = Form::new();
 
-        let manifest_json = serde_json::to_string(&application).into_diagnostic()?;
+        let manifest_json = serde_json::to_string(&application)?;
         multipart_form = multipart_form.text("application", manifest_json);
 
         let file_part = Part::bytes(code_zip).file_name("code.zip");
@@ -213,12 +205,8 @@ impl ApplicationsClient {
             .request(Method::POST, &uri_str)
             .multipart(multipart_form);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to upsert application");
-        }
+        let req = req_builder.build()?;
+        let _resp = self.client.execute(req).await?;
 
         Ok(())
     }
@@ -242,16 +230,12 @@ impl ApplicationsClient {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn delete(&self, namespace: &str, application: &str) -> miette::Result<()> {
+    pub async fn delete(&self, namespace: &str, application: &str) -> Result<(), SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
         let req_builder = self.client.request(Method::DELETE, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if !resp.status().is_success() {
-            miette::bail!("Unable to delete application");
-        }
+        let req = req_builder.build()?;
+        let _resp = self.client.execute(req).await?;
 
         Ok(())
     }
@@ -283,17 +267,13 @@ impl ApplicationsClient {
         namespace: &str,
         application: &str,
         body: serde_json::Value,
-    ) -> miette::Result<()> {
+    ) -> Result<(), SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
         let mut req_builder = self.client.request(Method::POST, &uri_str);
         req_builder = req_builder.json(&body);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if !resp.status().is_success() {
-            miette::bail!("Unable to invoke application");
-        }
+        let req = req_builder.build()?;
+        let _resp = self.client.execute(req).await?;
 
         Ok(())
     }
@@ -331,7 +311,7 @@ impl ApplicationsClient {
         limit: Option<i32>,
         cursor: Option<&str>,
         direction: Option<models::CursorDirection>,
-    ) -> miette::Result<models::ApplicationRequests> {
+    ) -> Result<models::ApplicationRequests, SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}/requests");
         let mut req_builder = self.client.request(Method::GET, &uri_str);
 
@@ -345,15 +325,11 @@ impl ApplicationsClient {
             req_builder = req_builder.query(&[("direction", &param_value.to_string())]);
         }
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to fetch application requests");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let list = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let list = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(list)
     }
@@ -383,19 +359,14 @@ impl ApplicationsClient {
         namespace: &str,
         application: &str,
         request_id: &str,
-    ) -> miette::Result<()> {
+    ) -> Result<(), SdkError> {
         let uri_str =
             format!("/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}");
         let req_builder = self.client.request(Method::DELETE, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let _resp = self.client.execute(req).await?;
 
-        let status = resp.status();
-
-        if !status.is_success() {
-            miette::bail!("Unable to delete request");
-        }
         Ok(())
     }
 
@@ -430,18 +401,14 @@ impl ApplicationsClient {
         application: &str,
         request_id: &str,
         function_call_id: &str,
-    ) -> miette::Result<models::DownloadOutput> {
+    ) -> Result<models::DownloadOutput, SdkError> {
         let uri_str = format!(
             "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}"
         );
         let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to download function output");
-        }
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
         let mut output = models::DownloadOutput {
             content_type: resp.headers().get(CONTENT_TYPE).cloned(),
@@ -450,7 +417,7 @@ impl ApplicationsClient {
         };
 
         if resp.status().is_success() {
-            output.content = resp.bytes().await.into_diagnostic()?;
+            output.content = resp.bytes().await?;
         }
 
         Ok(output)
@@ -489,18 +456,14 @@ impl ApplicationsClient {
         namespace: &str,
         application: &str,
         request_id: &str,
-    ) -> miette::Result<Option<models::DownloadOutput>> {
+    ) -> Result<Option<models::DownloadOutput>, SdkError> {
         let uri_str = format!(
             "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output"
         );
         let req_builder = self.client.request(Method::HEAD, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to check function output");
-        }
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
         if resp.status() == StatusCode::NO_CONTENT {
             return Ok(None);
@@ -540,18 +503,14 @@ impl ApplicationsClient {
         namespace: &str,
         application: &str,
         request_id: &str,
-    ) -> miette::Result<models::DownloadOutput> {
+    ) -> Result<models::DownloadOutput, SdkError> {
         let uri_str = format!(
             "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output",
         );
         let req_builder = self.client.request(Method::GET, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to download request output");
-        }
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
         let mut output = models::DownloadOutput {
             content_type: resp.headers().get(CONTENT_TYPE).cloned(),
@@ -560,7 +519,7 @@ impl ApplicationsClient {
         };
 
         if resp.status().is_success() {
-            output.content = resp.bytes().await.into_diagnostic()?;
+            output.content = resp.bytes().await?;
         }
 
         Ok(output)

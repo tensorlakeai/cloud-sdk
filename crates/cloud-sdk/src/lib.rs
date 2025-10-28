@@ -59,6 +59,7 @@
 //! ```
 
 pub mod applications;
+pub mod error;
 pub mod event_source;
 pub mod images;
 pub mod secrets;
@@ -116,7 +117,7 @@ impl Sdk {
     /// Ok(())
     /// # }
     /// ```
-    pub fn new(base_url: &str, bearer_token: &str) -> miette::Result<Self> {
+    pub fn new(base_url: &str, bearer_token: &str) -> Result<Self, error::SdkError> {
         let client = Client::new(base_url, bearer_token)?;
         Ok(Self { client })
     }

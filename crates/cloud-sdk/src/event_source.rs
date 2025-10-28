@@ -6,17 +6,9 @@
 use bytes::{Buf, BytesMut};
 use pin_project_lite::pin_project;
 use serde::de::DeserializeOwned;
-use std::io;
 use tokio_util::codec::Decoder;
 
-/// Error type for SSE decoding.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
-}
+use crate::error::SdkError;
 
 pin_project! {
     #[derive(Debug)]
@@ -32,7 +24,6 @@ impl<T> Default for SseDecoder<T> {
 }
 
 impl<T> SseDecoder<T> {
-    #[inline]
     pub fn new() -> SseDecoder<T> {
         SseDecoder {
             ty: std::marker::PhantomData,
@@ -45,7 +36,7 @@ where
     T: DeserializeOwned,
 {
     type Item = T;
-    type Error = Error;
+    type Error = SdkError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let nl_index = src.iter().position(|b| *b == b'\n');

@@ -26,17 +26,14 @@
 
 use std::io::Error;
 
-use crate::{
-    client::Client,
-    event_source::{self, SseDecoder},
-};
+use crate::{client::Client, error::SdkError, event_source::SseDecoder};
 use futures::{TryStreamExt, stream::Stream};
 use hex;
-use miette::{Context, IntoDiagnostic};
 use reqwest::{Method, header::ACCEPT, multipart::Form};
 use sha2::{Digest, Sha256};
 use tokio_util::{codec::FramedRead, io::StreamReader};
 
+pub mod error;
 pub mod models;
 use models::*;
 
@@ -110,13 +107,16 @@ impl ImagesClient {
     pub async fn build_image(
         &self,
         request: ImageBuildRequest,
-    ) -> miette::Result<ImageBuildResult> {
+    ) -> Result<ImageBuildResult, SdkError> {
         let build_info = self.submit_build_request(&request).await?;
         self.poll_build_status(&build_info.id).await
     }
 
     /// Submit a build request to the build service.
-    async fn submit_build_request(&self, request: &ImageBuildRequest) -> miette::Result<BuildInfo> {
+    async fn submit_build_request(
+        &self,
+        request: &ImageBuildRequest,
+    ) -> Result<BuildInfo, SdkError> {
         let form = Form::new()
             .text("graph_name", request.application_name.clone())
             .text("graph_version", request.application_version.clone())
@@ -133,77 +133,30 @@ impl ImagesClient {
             .client
             .request(Method::PUT, "/images/v2/builds")
             .multipart(form)
-            .build()
-            .into_diagnostic()?;
+            .build()?;
 
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .into_diagnostic()
-            .with_context(|| "Failed to send build request")?;
+        let response = self.client.execute(request).await?;
+        let json = response.json::<BuildInfo>().await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            miette::bail!(
-                "Build request failed with status {}: {}",
-                status,
-                error_text
-            );
-        }
-
-        response
-            .json::<BuildInfo>()
-            .await
-            .into_diagnostic()
-            .with_context(|| "Failed to parse build response")
+        Ok(json)
     }
 
     /// Poll the build status until completion.
-    async fn poll_build_status(&self, build_id: &str) -> miette::Result<ImageBuildResult> {
+    async fn poll_build_status(&self, build_id: &str) -> Result<ImageBuildResult, SdkError> {
         let mut attempts = 0;
         loop {
             attempts += 1;
             if attempts > 10 {
-                miette::bail!("Build polling timed out after {} attempts", attempts);
+                return Err(error::ImagesError::BuildTimeout { attempts }.into());
             }
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             let uri_str = format!("/images/v2/builds/{build_id}");
-            let request = self
-                .client
-                .request(Method::GET, &uri_str)
-                .build()
-                .into_diagnostic()?;
+            let request = self.client.request(Method::GET, &uri_str).build()?;
 
-            let response = self
-                .client
-                .execute(request)
-                .await
-                .into_diagnostic()
-                .with_context(|| format!("Failed to check build status for {}", build_id))?;
+            let response = self.client.execute(request).await?;
 
-            if !response.status().is_success() {
-                let status = response.status();
-                let error_text = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Unknown error".to_string());
-                miette::bail!(
-                    "Build status check failed with status {}: {}",
-                    status,
-                    error_text
-                );
-            }
-
-            let build_info: BuildInfo =
-                response.json().await.into_diagnostic().with_context(|| {
-                    format!("Failed to parse build status response for {}", build_id)
-                })?;
+            let build_info: BuildInfo = response.json().await?;
 
             match build_info.status.as_str() {
                 "completed" | "succeeded" => {
@@ -271,7 +224,7 @@ impl ImagesClient {
         application_name: Option<&str>,
         image_name: Option<&str>,
         function_name: Option<&str>,
-    ) -> miette::Result<Page<BuildListResponse>> {
+    ) -> Result<Page<BuildListResponse>, SdkError> {
         let mut query_params = Vec::new();
         if let Some(p) = page {
             query_params.push(("page", p.to_string()));
@@ -306,34 +259,11 @@ impl ImagesClient {
             .client
             .request(Method::GET, "/images/v2/builds")
             .query(&query_params)
-            .build()
-            .into_diagnostic()?;
+            .build()?;
 
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .into_diagnostic()
-            .wrap_err("Failed to fetch the list of image builds")?;
+        let response = self.client.execute(request).await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            miette::bail!(
-                "List builds request failed with status {}: {}",
-                status,
-                error_text
-            );
-        }
-
-        response
-            .json::<Page<BuildListResponse>>()
-            .await
-            .into_diagnostic()
-            .with_context(|| "Failed to parse list builds response")
+        Ok(response.json::<Page<BuildListResponse>>().await?)
     }
 
     /// Cancel a build.
@@ -362,33 +292,11 @@ impl ImagesClient {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn cancel_build(&self, build_id: &str) -> miette::Result<()> {
+    pub async fn cancel_build(&self, build_id: &str) -> Result<(), SdkError> {
         let uri_str = format!("/images/v2/builds/{build_id}/cancel");
-        let request = self
-            .client
-            .request(Method::POST, &uri_str)
-            .build()
-            .into_diagnostic()?;
+        let request = self.client.request(Method::POST, &uri_str).build()?;
 
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .into_diagnostic()
-            .wrap_err("Failed to send cancel build request")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            miette::bail!(
-                "Cancel build request failed with status {}: {}",
-                status,
-                error_text
-            );
-        }
+        let _response = self.client.execute(request).await?;
 
         // 202 Accepted, no body
         Ok(())
@@ -420,39 +328,13 @@ impl ImagesClient {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn get_build_info(&self, build_id: &str) -> miette::Result<BuildInfoResponse> {
+    pub async fn get_build_info(&self, build_id: &str) -> Result<BuildInfoResponse, SdkError> {
         let uri_str = format!("/images/v2/builds/{build_id}");
-        let request = self
-            .client
-            .request(Method::GET, &uri_str)
-            .build()
-            .into_diagnostic()?;
+        let request = self.client.request(Method::GET, &uri_str).build()?;
 
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .into_diagnostic()
-            .wrap_err("Failed to get the build information")?;
+        let response = self.client.execute(request).await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            miette::bail!(
-                "Get build info request failed with status {}: {}",
-                status,
-                error_text
-            );
-        }
-
-        response
-            .json::<BuildInfoResponse>()
-            .await
-            .into_diagnostic()
-            .with_context(|| "Failed to parse build info response")
+        Ok(response.json::<BuildInfoResponse>().await?)
     }
 
     /// Stream build logs.
@@ -491,21 +373,15 @@ impl ImagesClient {
     pub async fn stream_logs(
         &self,
         build_id: &str,
-    ) -> miette::Result<impl Stream<Item = Result<LogEntry, event_source::Error>>> {
+    ) -> Result<impl Stream<Item = Result<LogEntry, SdkError>>, SdkError> {
         let uri_str = format!("/images/v2/builds/{build_id}/logs");
         let request = self
             .client
             .request(Method::GET, &uri_str)
             .header(ACCEPT, "text/event-stream")
-            .build()
-            .into_diagnostic()?;
+            .build()?;
 
-        let response = self
-            .client
-            .execute(request)
-            .await
-            .into_diagnostic()
-            .wrap_err("Failed to process image build stream logs")?;
+        let response = self.client.execute(request).await?;
 
         let decoder: SseDecoder<LogEntry> = SseDecoder::new();
         let stream = response.bytes_stream();

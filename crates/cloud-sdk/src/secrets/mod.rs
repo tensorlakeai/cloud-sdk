@@ -24,10 +24,10 @@
 //! }
 //! ```
 
+pub mod error;
 pub mod models;
 
-use crate::client::Client;
-use miette::IntoDiagnostic;
+use crate::{client::Client, error::SdkError};
 
 use models::*;
 use reqwest::Method;
@@ -93,7 +93,7 @@ impl SecretsClient {
         organization_id: &str,
         project_id: &str,
         create_secret: CreateSecret,
-    ) -> miette::Result<Secret> {
+    ) -> Result<Secret, SdkError> {
         let uri_str =
             format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
@@ -102,15 +102,11 @@ impl SecretsClient {
             .request(Method::POST, &uri_str)
             .json(&create_secret);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to create secret");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let secret = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let secret = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(secret)
     }
@@ -149,7 +145,7 @@ impl SecretsClient {
         organization_id: &str,
         project_id: &str,
         upsert_secret: UpsertSecret,
-    ) -> miette::Result<UpsertSecretResponse> {
+    ) -> Result<UpsertSecretResponse, SdkError> {
         let uri_str =
             format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
@@ -158,15 +154,11 @@ impl SecretsClient {
             .request(Method::PUT, &uri_str)
             .json(&upsert_secret);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to upsert secret");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let response = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let response = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(response)
     }
@@ -204,7 +196,7 @@ impl SecretsClient {
         next: Option<&str>,
         prev: Option<&str>,
         page_size: Option<i32>,
-    ) -> miette::Result<SecretsList> {
+    ) -> Result<SecretsList, SdkError> {
         let uri_str =
             format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
@@ -220,15 +212,11 @@ impl SecretsClient {
             req_builder = req_builder.query(&[("pageSize", &param_value.to_string())]);
         }
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to fetch secrets");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let list = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let list = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(list)
     }
@@ -262,22 +250,18 @@ impl SecretsClient {
         organization_id: &str,
         project_id: &str,
         secret_id: &str,
-    ) -> miette::Result<Secret> {
+    ) -> Result<Secret, SdkError> {
         let uri_str = format!(
             "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
         );
 
         let req_builder = self.client.request(Method::GET, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
 
-        if resp.status().is_server_error() {
-            miette::bail!("Unable to retrieve secret");
-        }
-
-        let bytes = resp.bytes().await.into_diagnostic()?;
-        let secret = serde_json::from_reader(bytes.as_ref()).into_diagnostic()?;
+        let bytes = resp.bytes().await?;
+        let secret = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(secret)
     }
@@ -307,19 +291,15 @@ impl SecretsClient {
         organization_id: &str,
         project_id: &str,
         secret_id: &str,
-    ) -> miette::Result<()> {
+    ) -> Result<(), SdkError> {
         let uri_str = format!(
             "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
         );
 
         let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);
 
-        let req = req_builder.build().into_diagnostic()?;
-        let resp = self.client.execute(req).await.into_diagnostic()?;
-
-        if !resp.status().is_success() {
-            miette::bail!("Unable to delete secret");
-        }
+        let req = req_builder.build()?;
+        let _resp = self.client.execute(req).await?;
 
         Ok(())
     }
