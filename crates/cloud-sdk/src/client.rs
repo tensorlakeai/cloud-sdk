@@ -1,8 +1,6 @@
 //! HTTP client that interacts with the Tensorlake Cloud API.
-use std::ops::Deref;
-
 use miette::{Context, IntoDiagnostic};
-use reqwest::header::HeaderMap;
+use reqwest::{Request, Response, header::HeaderMap};
 
 /// HTTP client that interacts with the Tensorlake Cloud API.
 #[derive(Clone, Debug)]
@@ -38,16 +36,12 @@ impl Client {
         })
     }
 
-    /// Get the base URL.
-    pub fn base_url(&self) -> &str {
-        &self.base_url
+    /// Execute an HTTP request.
+    pub async fn execute(&self, request: Request) -> reqwest::Result<Response> {
+        self.client.execute(request).await
     }
-}
 
-impl Deref for Client {
-    type Target = reqwest::Client;
-
-    fn deref(&self) -> &Self::Target {
-        &self.client
+    pub fn request(&self, method: reqwest::Method, path: &str) -> reqwest::RequestBuilder {
+        self.client.request(method, self.base_url.clone() + path)
     }
 }

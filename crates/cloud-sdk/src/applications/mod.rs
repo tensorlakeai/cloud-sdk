@@ -29,9 +29,9 @@ pub mod models;
 use bytes::Bytes;
 use miette::IntoDiagnostic;
 use reqwest::{
-    StatusCode,
+    Method, StatusCode,
     header::{CONTENT_LENGTH, CONTENT_TYPE},
-    multipart::Form,
+    multipart::{Form, Part},
 };
 
 use crate::client::Client;
@@ -42,7 +42,6 @@ use crate::client::Client;
 /// It wraps the raw API calls with a more ergonomic interface.
 #[derive(Debug)]
 pub struct ApplicationsClient {
-    service_url: String,
     client: Client,
 }
 
@@ -65,10 +64,7 @@ impl ApplicationsClient {
     /// }
     /// ```
     pub fn new(client: Client) -> Self {
-        Self {
-            service_url: format!("{}/v1/namespaces", client.base_url()),
-            client,
-        }
+        Self { client }
     }
 
     /// List all applications in a namespace.
@@ -103,8 +99,8 @@ impl ApplicationsClient {
         cursor: Option<&str>,
         direction: Option<models::CursorDirection>,
     ) -> miette::Result<models::ApplicationsList> {
-        let uri_str = format!("{}/{namespace}/applications", self.service_url,);
-        let mut req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications");
+        let mut req_builder = self.client.request(Method::GET, &uri_str);
 
         if let Some(ref param_value) = limit {
             req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
@@ -157,11 +153,8 @@ impl ApplicationsClient {
         namespace: &str,
         application: &str,
     ) -> miette::Result<models::Application> {
-        let uri_str = format!(
-            "{}/{namespace}/applications/{application}",
-            self.service_url
-        );
-        let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}",);
+        let req_builder = self.client.request(Method::GET, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;
@@ -196,11 +189,11 @@ impl ApplicationsClient {
     ///     // This is typically done by parsing from configuration files or build manifests
     ///     let code_zip: Vec<u8> = vec![/* zip file bytes */];
     ///     // let app_data = Application { ... }; // construct full application data
-    ///     // apps_client.create_or_update("default", app_data, code_zip).await?;
+    ///     // apps_client.upsert("default", app_data, code_zip).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn create_or_update(
+    pub async fn upsert(
         &self,
         namespace: &str,
         application: models::Application,
@@ -211,13 +204,13 @@ impl ApplicationsClient {
         let manifest_json = serde_json::to_string(&application).into_diagnostic()?;
         multipart_form = multipart_form.text("application", manifest_json);
 
-        let file_part = reqwest::multipart::Part::bytes(code_zip).file_name("code.zip");
+        let file_part = Part::bytes(code_zip).file_name("code.zip");
         multipart_form = multipart_form.part("code", file_part);
 
-        let uri_str = format!("{}/{namespace}/applications", self.service_url);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications");
         let req_builder = self
             .client
-            .request(reqwest::Method::POST, &uri_str)
+            .request(Method::POST, &uri_str)
             .multipart(multipart_form);
 
         let req = req_builder.build().into_diagnostic()?;
@@ -250,11 +243,8 @@ impl ApplicationsClient {
     /// }
     /// ```
     pub async fn delete(&self, namespace: &str, application: &str) -> miette::Result<()> {
-        let uri_str = format!(
-            "{}/{namespace}/applications/{application}",
-            self.service_url,
-        );
-        let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
+        let req_builder = self.client.request(Method::DELETE, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;
@@ -294,11 +284,8 @@ impl ApplicationsClient {
         application: &str,
         body: serde_json::Value,
     ) -> miette::Result<()> {
-        let uri_str = format!(
-            "{}/{namespace}/applications/{application}",
-            self.service_url,
-        );
-        let mut req_builder = self.client.request(reqwest::Method::POST, &uri_str);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
+        let mut req_builder = self.client.request(Method::POST, &uri_str);
         req_builder = req_builder.json(&body);
 
         let req = req_builder.build().into_diagnostic()?;
@@ -345,11 +332,8 @@ impl ApplicationsClient {
         cursor: Option<&str>,
         direction: Option<models::CursorDirection>,
     ) -> miette::Result<models::ApplicationRequests> {
-        let uri_str = format!(
-            "{}/{namespace}/applications/{application}/requests",
-            self.service_url,
-        );
-        let mut req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}/requests");
+        let mut req_builder = self.client.request(Method::GET, &uri_str);
 
         if let Some(ref param_value) = limit {
             req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
@@ -400,11 +384,9 @@ impl ApplicationsClient {
         application: &str,
         request_id: &str,
     ) -> miette::Result<()> {
-        let uri_str = format!(
-            "{}/{namespace}/applications/{application}/requests/{request_id}",
-            self.service_url,
-        );
-        let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);
+        let uri_str =
+            format!("/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}");
+        let req_builder = self.client.request(Method::DELETE, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;
@@ -450,8 +432,7 @@ impl ApplicationsClient {
         function_call_id: &str,
     ) -> miette::Result<models::DownloadOutput> {
         let uri_str = format!(
-            "{}/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}",
-            self.service_url
+            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}"
         );
         let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
@@ -510,10 +491,9 @@ impl ApplicationsClient {
         request_id: &str,
     ) -> miette::Result<Option<models::DownloadOutput>> {
         let uri_str = format!(
-            "{}/{namespace}/applications/{application}/requests/{request_id}/output",
-            self.service_url,
+            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output"
         );
-        let req_builder = self.client.request(reqwest::Method::HEAD, &uri_str);
+        let req_builder = self.client.request(Method::HEAD, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;
@@ -562,10 +542,9 @@ impl ApplicationsClient {
         request_id: &str,
     ) -> miette::Result<models::DownloadOutput> {
         let uri_str = format!(
-            "{}/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output",
-            self.client.base_url()
+            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output",
         );
-        let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let req_builder = self.client.request(Method::GET, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;

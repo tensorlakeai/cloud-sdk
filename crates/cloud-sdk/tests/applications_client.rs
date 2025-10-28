@@ -156,7 +156,7 @@ async fn test_create_or_update_application() {
 
     let zip_data = vec![0x50, 0x4B, 0x03, 0x04]; // Minimal ZIP header bytes
 
-    let result = apps_client.create_or_update("default", app, zip_data).await;
+    let result = apps_client.upsert("default", app, zip_data).await;
     assert!(result.is_ok());
 
     mock.assert();

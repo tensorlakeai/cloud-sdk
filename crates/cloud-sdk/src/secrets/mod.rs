@@ -30,11 +30,11 @@ use crate::client::Client;
 use miette::IntoDiagnostic;
 
 use models::*;
+use reqwest::Method;
 
 /// A client for managing secrets in Tensorlake Cloud.
 #[derive(Debug)]
 pub struct SecretsClient {
-    service_url: String,
     client: Client,
 }
 
@@ -57,10 +57,7 @@ impl SecretsClient {
     /// }
     /// ```
     pub fn new(client: Client) -> Self {
-        Self {
-            service_url: format!("{}/platform/v1/organizations", client.base_url()),
-            client,
-        }
+        Self { client }
     }
 
     /// Create a new secret.
@@ -97,14 +94,12 @@ impl SecretsClient {
         project_id: &str,
         create_secret: CreateSecret,
     ) -> miette::Result<Secret> {
-        let uri_str = format!(
-            "{}/{organization_id}/projects/{project_id}/secrets",
-            self.service_url,
-        );
+        let uri_str =
+            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
         let req_builder = self
             .client
-            .request(reqwest::Method::POST, &uri_str)
+            .request(Method::POST, &uri_str)
             .json(&create_secret);
 
         let req = req_builder.build().into_diagnostic()?;
@@ -155,14 +150,12 @@ impl SecretsClient {
         project_id: &str,
         upsert_secret: UpsertSecret,
     ) -> miette::Result<UpsertSecretResponse> {
-        let uri_str = format!(
-            "{}/{organization_id}/projects/{project_id}/secrets",
-            self.service_url
-        );
+        let uri_str =
+            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
         let req_builder = self
             .client
-            .request(reqwest::Method::PUT, &uri_str)
+            .request(Method::PUT, &uri_str)
             .json(&upsert_secret);
 
         let req = req_builder.build().into_diagnostic()?;
@@ -212,12 +205,10 @@ impl SecretsClient {
         prev: Option<&str>,
         page_size: Option<i32>,
     ) -> miette::Result<SecretsList> {
-        let uri_str = format!(
-            "{}/{organization_id}/projects/{project_id}/secrets",
-            self.service_url,
-        );
+        let uri_str =
+            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
 
-        let mut req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let mut req_builder = self.client.request(Method::GET, &uri_str);
 
         if let Some(ref param_value) = next {
             req_builder = req_builder.query(&[("next", &param_value.to_string())]);
@@ -273,14 +264,10 @@ impl SecretsClient {
         secret_id: &str,
     ) -> miette::Result<Secret> {
         let uri_str = format!(
-            "{}/platform/v1/organizations/{}/projects/{}/secrets/{}",
-            self.client.base_url(),
-            organization_id,
-            project_id,
-            secret_id
+            "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
         );
 
-        let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
+        let req_builder = self.client.request(Method::GET, &uri_str);
 
         let req = req_builder.build().into_diagnostic()?;
         let resp = self.client.execute(req).await.into_diagnostic()?;
@@ -322,11 +309,7 @@ impl SecretsClient {
         secret_id: &str,
     ) -> miette::Result<()> {
         let uri_str = format!(
-            "{}/platform/v1/organizations/{}/projects/{}/secrets/{}",
-            self.client.base_url(),
-            organization_id,
-            project_id,
-            secret_id
+            "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
         );
 
         let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);

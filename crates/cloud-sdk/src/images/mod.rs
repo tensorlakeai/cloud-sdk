@@ -33,7 +33,7 @@ use crate::{
 use futures::{TryStreamExt, stream::Stream};
 use hex;
 use miette::{Context, IntoDiagnostic};
-use reqwest::header::ACCEPT;
+use reqwest::{Method, header::ACCEPT, multipart::Form};
 use sha2::{Digest, Sha256};
 use tokio_util::{codec::FramedRead, io::StreamReader};
 
@@ -43,7 +43,6 @@ use models::*;
 /// A client for managing image builds in Tensorlake Cloud.
 #[derive(Debug)]
 pub struct ImagesClient {
-    service_url: String,
     client: Client,
 }
 
@@ -67,10 +66,7 @@ impl ImagesClient {
     /// }
     /// ```
     pub fn new(client: Client) -> Self {
-        Self {
-            service_url: format!("{}/images/v2", client.base_url()),
-            client,
-        }
+        Self { client }
     }
 
     /// Build a container image.
@@ -121,7 +117,7 @@ impl ImagesClient {
 
     /// Submit a build request to the build service.
     async fn submit_build_request(&self, request: &ImageBuildRequest) -> miette::Result<BuildInfo> {
-        let form = reqwest::multipart::Form::new()
+        let form = Form::new()
             .text("graph_name", request.application_name.clone())
             .text("graph_version", request.application_version.clone())
             .text("graph_function_name", request.function_name.clone())
@@ -133,11 +129,16 @@ impl ImagesClient {
                     .file_name("context.tar.gz"),
             );
 
+        let request = self
+            .client
+            .request(Method::PUT, "/images/v2/builds")
+            .multipart(form)
+            .build()
+            .into_diagnostic()?;
+
         let response = self
             .client
-            .put(format!("{}/builds", self.service_url))
-            .multipart(form)
-            .send()
+            .execute(request)
             .await
             .into_diagnostic()
             .with_context(|| "Failed to send build request")?;
@@ -172,10 +173,16 @@ impl ImagesClient {
             }
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
+            let uri_str = format!("/images/v2/builds/{build_id}");
+            let request = self
+                .client
+                .request(Method::GET, &uri_str)
+                .build()
+                .into_diagnostic()?;
+
             let response = self
                 .client
-                .get(format!("{}/builds/{build_id}", self.service_url))
-                .send()
+                .execute(request)
                 .await
                 .into_diagnostic()
                 .with_context(|| format!("Failed to check build status for {}", build_id))?;
@@ -232,9 +239,9 @@ impl ImagesClient {
     /// * `page` - Optional page number (default: 1)
     /// * `page_size` - Optional page size (default: 25, max: 100)
     /// * `status` - Optional filter by build status
-    /// * `graph_name` - Optional filter by graph name
+    /// * `application_name` - Optional filter by application name
     /// * `image_name` - Optional filter by image name
-    /// * `graph_function_name` - Optional filter by graph function name
+    /// * `function_name` - Optional filter by function name
     ///
     /// # Returns
     ///
@@ -261,12 +268,10 @@ impl ImagesClient {
         page: Option<i32>,
         page_size: Option<i32>,
         status: Option<&BuildStatus>,
-        graph_name: Option<&str>,
+        application_name: Option<&str>,
         image_name: Option<&str>,
-        graph_function_name: Option<&str>,
+        function_name: Option<&str>,
     ) -> miette::Result<Page<BuildListResponse>> {
-        let mut url = format!("{}/builds", self.service_url);
-
         let mut query_params = Vec::new();
         if let Some(p) = page {
             query_params.push(("page", p.to_string()));
@@ -287,32 +292,29 @@ impl ImagesClient {
             };
             query_params.push(("status", status_str.to_string()));
         }
-        if let Some(gn) = graph_name {
+        if let Some(gn) = application_name {
             query_params.push(("graph_name", gn.to_string()));
         }
         if let Some(iname) = image_name {
             query_params.push(("image_name", iname.to_string()));
         }
-        if let Some(gfn) = graph_function_name {
+        if let Some(gfn) = function_name {
             query_params.push(("graph_function_name", gfn.to_string()));
         }
 
-        if !query_params.is_empty() {
-            url.push('?');
-            let params: Vec<String> = query_params
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, urlencoding::encode(v)))
-                .collect();
-            url.push_str(&params.join("&"));
-        }
+        let request = self
+            .client
+            .request(Method::GET, "/images/v2/builds")
+            .query(&query_params)
+            .build()
+            .into_diagnostic()?;
 
         let response = self
             .client
-            .get(&url)
-            .send()
+            .execute(request)
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to send list builds request to {}", url))?;
+            .wrap_err("Failed to fetch the list of image builds")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -361,15 +363,19 @@ impl ImagesClient {
     /// }
     /// ```
     pub async fn cancel_build(&self, build_id: &str) -> miette::Result<()> {
-        let url = format!("{}/builds/{build_id}/cancel", self.service_url);
+        let uri_str = format!("/images/v2/builds/{build_id}/cancel");
+        let request = self
+            .client
+            .request(Method::POST, &uri_str)
+            .build()
+            .into_diagnostic()?;
 
         let response = self
             .client
-            .post(&url)
-            .send()
+            .execute(request)
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to send cancel build request to {}", url))?;
+            .wrap_err("Failed to send cancel build request")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -415,15 +421,19 @@ impl ImagesClient {
     /// }
     /// ```
     pub async fn get_build_info(&self, build_id: &str) -> miette::Result<BuildInfoResponse> {
-        let url = format!("{}/builds/{}", self.service_url, build_id);
+        let uri_str = format!("/images/v2/builds/{build_id}");
+        let request = self
+            .client
+            .request(Method::GET, &uri_str)
+            .build()
+            .into_diagnostic()?;
 
         let response = self
             .client
-            .get(&url)
-            .send()
+            .execute(request)
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to send get build info request to {}", url))?;
+            .wrap_err("Failed to get the build information")?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -482,16 +492,20 @@ impl ImagesClient {
         &self,
         build_id: &str,
     ) -> miette::Result<impl Stream<Item = Result<LogEntry, event_source::Error>>> {
-        let url = format!("{}/builds/{}/logs", self.service_url, build_id);
+        let uri_str = format!("/images/v2/builds/{build_id}/logs");
+        let request = self
+            .client
+            .request(Method::GET, &uri_str)
+            .header(ACCEPT, "text/event-stream")
+            .build()
+            .into_diagnostic()?;
 
         let response = self
             .client
-            .get(&url)
-            .header(ACCEPT, "text/event-stream")
-            .send()
+            .execute(request)
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to send stream logs request to {}", url))?;
+            .wrap_err("Failed to process image build stream logs")?;
 
         let decoder: SseDecoder<LogEntry> = SseDecoder::new();
         let stream = response.bytes_stream();
