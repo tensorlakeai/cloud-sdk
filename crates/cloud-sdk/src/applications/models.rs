@@ -272,3 +272,69 @@ pub struct ShallowRequest {
     #[serde(rename = "id")]
     pub id: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RequestStateChangeEvent {
+    RequestStarted(RequestStartedEvent),
+    FunctionRunCreated(FunctionRunCreated),
+    FunctionRunAssigned(FunctionRunAssigned),
+    FunctionRunCompleted(FunctionRunCompleted),
+    FunctionRunMatchedCache(FunctionRunMatchedCache),
+    RequestCreated(RequestCreatedEvent),
+    RequestFinished(RequestFinishedEvent),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestCreatedEvent {
+    pub request_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestFinishedEvent {
+    pub request_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestStartedEvent {
+    pub request_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FunctionRunCreated {
+    pub request_id: String,
+    pub function_name: String,
+    pub function_run_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FunctionRunAssigned {
+    pub request_id: String,
+    pub function_name: String,
+    pub function_run_id: String,
+    pub allocation_id: String,
+    pub executor_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum FunctionRunOutcomeSummary {
+    Unknown,
+    Success,
+    Failure,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FunctionRunCompleted {
+    pub request_id: String,
+    pub function_name: String,
+    pub function_run_id: String,
+    pub allocation_id: String,
+    pub outcome: FunctionRunOutcomeSummary,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FunctionRunMatchedCache {
+    pub request_id: String,
+    pub function_name: String,
+    pub function_run_id: String,
+}

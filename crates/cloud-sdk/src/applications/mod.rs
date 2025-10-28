@@ -28,13 +28,31 @@ pub mod error;
 pub mod models;
 
 use bytes::Bytes;
+use futures::{Stream, TryStreamExt};
 use reqwest::{
     Method, StatusCode,
-    header::{CONTENT_LENGTH, CONTENT_TYPE},
+    header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE},
     multipart::{Form, Part},
 };
+use std::io::Error;
+use tokio_util::{codec::FramedRead, io::StreamReader};
 
-use crate::{client::Client, error::SdkError};
+use crate::{client::Client, error::SdkError, event_source::SseDecoder};
+
+/// Response from invoking an application
+pub enum InvokeResponse {
+    /// The request ID of the invocation
+    RequestId(String),
+    /// A stream of progress events
+    Stream(
+        std::pin::Pin<
+            Box<
+                dyn futures::Stream<Item = Result<models::RequestStateChangeEvent, SdkError>>
+                    + Send,
+            >,
+        >,
+    ),
+}
 
 /// A client for interacting with Tensorlake Cloud applications.
 ///
@@ -247,6 +265,11 @@ impl ApplicationsClient {
     /// * `namespace` - The namespace containing the application
     /// * `application` - The name of the application to invoke
     /// * `body` - JSON data to send with the invocation
+    /// * `stream` - Whether to return a stream of progress events instead of just the request ID
+    ///
+    /// # Returns
+    ///
+    /// If `stream` is false, returns the request ID. If `stream` is true, returns a stream of progress events.
     ///
     /// # Example
     ///
@@ -258,24 +281,52 @@ impl ApplicationsClient {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let data = serde_json::json!({"input": "hello world"});
-    ///     apps_client.send_request("default", "my-app", data).await?;
+    ///     let response = apps_client.invoke("default", "my-app", data, false).await?;
+    ///     match response {
+    ///         InvokeResponse::RequestId(id) => println!("Request ID: {}", id),
+    ///         InvokeResponse::Stream(_) => unreachable!(),
+    ///     }
     ///     Ok(())
     /// }
     /// ```
-    pub async fn send_request(
+    pub async fn invoke(
         &self,
         namespace: &str,
         application: &str,
         body: serde_json::Value,
-    ) -> Result<(), SdkError> {
+        stream: bool,
+    ) -> Result<InvokeResponse, SdkError> {
         let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
         let mut req_builder = self.client.request(Method::POST, &uri_str);
+
+        if stream {
+            req_builder = req_builder.header(ACCEPT, "text/event-stream");
+        } else {
+            req_builder = req_builder.header(ACCEPT, "application/json");
+        }
+
         req_builder = req_builder.json(&body);
 
         let req = req_builder.build()?;
-        let _resp = self.client.execute(req).await?;
+        let resp = self.client.execute(req).await?;
 
-        Ok(())
+        if stream {
+            let decoder: SseDecoder<models::RequestStateChangeEvent> = SseDecoder::new();
+            let stream = resp.bytes_stream();
+            let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
+            Ok(InvokeResponse::Stream(Box::pin(frame.into_stream())))
+        } else {
+            let bytes = resp.bytes().await?;
+            let request_id_resp: serde_json::Value = serde_json::from_slice(&bytes)?;
+            let request_id =
+                request_id_resp["request_id"]
+                    .as_str()
+                    .ok_or_else(|| SdkError::ServerError {
+                        status: reqwest::StatusCode::OK,
+                        message: "Missing request_id in response".to_string(),
+                    })?;
+            Ok(InvokeResponse::RequestId(request_id.to_string()))
+        }
     }
 
     /// List requests for an application.
@@ -421,6 +472,62 @@ impl ApplicationsClient {
         }
 
         Ok(output)
+    }
+
+    /// Stream progress events for a request.
+    ///
+    /// # Arguments
+    ///
+    /// * `namespace` - The namespace containing the application
+    /// * `application` - The name of the application
+    /// * `request_id` - The ID of the request to stream progress for
+    ///
+    /// # Returns
+    ///
+    /// A stream that yields progress events for the request.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// use futures::StreamExt;
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let apps_client = ApplicationsClient::new(client);
+    ///     let mut stream = apps_client.stream_progress("default", "my-app", "request-123").await?;
+    ///     while let Some(event) = stream.next().await {
+    ///         match event {
+    ///             Ok(event) => println!("Event: {:?}", event),
+    ///             Err(e) => eprintln!("Error: {:?}", e),
+    ///         }
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn stream_progress(
+        &self,
+        namespace: &str,
+        application: &str,
+        request_id: &str,
+    ) -> Result<impl Stream<Item = Result<models::RequestStateChangeEvent, SdkError>>, SdkError>
+    {
+        let uri_str = format!(
+            "/namespaces/{namespace}/applications/{application}/requests/{request_id}/progress"
+        );
+        let req_builder = self
+            .client
+            .request(Method::GET, &uri_str)
+            .header(ACCEPT, "text/event-stream");
+
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
+
+        let decoder: SseDecoder<models::RequestStateChangeEvent> = SseDecoder::new();
+        let stream = resp.bytes_stream();
+        let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
+
+        Ok(frame.into_stream())
     }
 
     /// Check if output is available for a request without downloading the content.
