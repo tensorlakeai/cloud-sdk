@@ -6,8 +6,8 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
-//! use cloud_sdk::Sdk;
+//! ```rust,no_run
+//! use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create the SDK client
@@ -17,7 +17,10 @@
 //!     let apps_client = sdk.applications();
 //!
 //!     // List applications in the default namespace
-//!     apps_client.list("default", None, None, None).await?;
+//!     let request = ListApplicationsRequest::builder()
+//!         .namespace("default".to_string())
+//!         .build()?;
+//!     apps_client.list(&request).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -43,14 +46,17 @@
 //!
 //! The SDK provides detailed error types for different scenarios:
 //!
-//! ```rust
-//! use cloud_sdk::Sdk;
+//! ```rust,no_run
+//! use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
 //!     let apps_client = sdk.applications();
 //!
-//!     match apps_client.list("default", None, None, None).await {
+//!     let request = ListApplicationsRequest::builder()
+//!         .namespace("default".to_string())
+//!         .build()?;
+//!     match apps_client.list(&request).await {
 //!         Ok(apps) => println!("Success: {:?}", apps.applications.len()),
 //!         Err(e) => eprintln!("Error: {}", e),
 //!     }
@@ -135,15 +141,18 @@ impl Sdk {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::Sdk;
+    /// ```rust,no_run
+    /// use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = sdk.applications();
     ///
     ///     // Use the applications client
-    ///     apps_client.list("default", None, None, None).await?;
+    ///     let request = ListApplicationsRequest::builder()
+    ///         .namespace("default".to_string())
+    ///         .build()?;
+    ///     apps_client.list(&request).await?;
     ///     Ok(())
     /// }
     /// ```
@@ -189,15 +198,19 @@ impl Sdk {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::Sdk;
+    /// ```rust,no_run
+    /// use cloud_sdk::{Sdk, secrets::models::ListSecretsRequest};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let secrets_client = sdk.secrets();
     ///
     ///     // Use the secrets client
-    ///     secrets_client.list("org-id", "project-id", None, None, None).await?;
+    ///     let request = ListSecretsRequest::builder()
+    ///         .organization_id("org-id".to_string())
+    ///         .project_id("project-id".to_string())
+    ///         .build()?;
+    ///     secrets_client.list(&request).await?;
     ///     Ok(())
     /// }
     /// ```

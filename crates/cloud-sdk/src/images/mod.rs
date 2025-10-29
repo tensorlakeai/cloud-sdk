@@ -91,14 +91,14 @@ impl ImagesClient {
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
-    ///     let request = ImageBuildRequest {
-    ///         image_name: "my-image".to_string(),
-    ///         image_tag: "v1.0".to_string(),
-    ///         context_data: vec![/* context tar.gz data */],
-    ///         application_name: "my-app".to_string(),
-    ///         application_version: "1.0.0".to_string(),
-    ///         function_name: "main".to_string(),
-    ///     };
+    ///     let request = ImageBuildRequest::builder()
+    ///         .image_name("my-image")
+    ///         .image_tag("v1.0")
+    ///         .context_data(vec![/* context tar.gz data */])
+    ///         .application_name("my-app")
+    ///         .application_version("1.0.0")
+    ///         .function_name("main")
+    ///         .build()?;
     ///
     ///     images_client.build_image(request).await?;
     ///     Ok(())
@@ -189,12 +189,7 @@ impl ImagesClient {
     ///
     /// # Arguments
     ///
-    /// * `page` - Optional page number (default: 1)
-    /// * `page_size` - Optional page size (default: 25, max: 100)
-    /// * `status` - Optional filter by build status
-    /// * `application_name` - Optional filter by application name
-    /// * `image_name` - Optional filter by image name
-    /// * `function_name` - Optional filter by function name
+    /// * `request` - The list builds request
     ///
     /// # Returns
     ///
@@ -206,33 +201,32 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, images::{ImagesClient, models::ListBuildsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
-    ///     images_client.list_builds(Some(1), Some(25), None, None, None, None).await?;
+    ///     let request = ListBuildsRequest::builder()
+    ///         .page(1)
+    ///         .page_size(25)
+    ///         .build()?;
+    ///     images_client.list_builds(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn list_builds(
         &self,
-        page: Option<i32>,
-        page_size: Option<i32>,
-        status: Option<&BuildStatus>,
-        application_name: Option<&str>,
-        image_name: Option<&str>,
-        function_name: Option<&str>,
+        request: &models::ListBuildsRequest,
     ) -> Result<Page<BuildListResponse>, SdkError> {
         let mut query_params = Vec::new();
-        if let Some(p) = page {
+        if let Some(p) = request.page {
             query_params.push(("page", p.to_string()));
         }
-        if let Some(ps) = page_size {
+        if let Some(ps) = request.page_size {
             query_params.push(("page_size", ps.to_string()));
         }
-        if let Some(s) = status {
+        if let Some(s) = &request.status {
             // Assuming BuildStatus can be converted to string
             let status_str = match s {
                 BuildStatus::Pending => "pending",
@@ -245,23 +239,23 @@ impl ImagesClient {
             };
             query_params.push(("status", status_str.to_string()));
         }
-        if let Some(gn) = application_name {
+        if let Some(gn) = &request.application_name {
             query_params.push(("graph_name", gn.to_string()));
         }
-        if let Some(iname) = image_name {
+        if let Some(iname) = &request.image_name {
             query_params.push(("image_name", iname.to_string()));
         }
-        if let Some(gfn) = function_name {
+        if let Some(gfn) = &request.function_name {
             query_params.push(("graph_function_name", gfn.to_string()));
         }
 
-        let request = self
+        let req = self
             .client
             .request(Method::GET, "/images/v2/builds")
             .query(&query_params)
             .build()?;
 
-        let response = self.client.execute(request).await?;
+        let response = self.client.execute(req).await?;
 
         Ok(response.json::<Page<BuildListResponse>>().await?)
     }
@@ -270,7 +264,7 @@ impl ImagesClient {
     ///
     /// # Arguments
     ///
-    /// * `build_id` - The ID of the build to cancel
+    /// * `request` - The cancel build request
     ///
     /// # Returns
     ///
@@ -282,21 +276,24 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, images::{ImagesClient, models::CancelBuildRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
-    ///     images_client.cancel_build("build-123").await?;
+    ///     let request = CancelBuildRequest::builder()
+    ///         .build_id("build-123".to_string())
+    ///         .build()?;
+    ///     images_client.cancel_build(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn cancel_build(&self, build_id: &str) -> Result<(), SdkError> {
-        let uri_str = format!("/images/v2/builds/{build_id}/cancel");
-        let request = self.client.request(Method::POST, &uri_str).build()?;
+    pub async fn cancel_build(&self, request: &models::CancelBuildRequest) -> Result<(), SdkError> {
+        let uri_str = format!("/images/v2/builds/{}/cancel", request.build_id);
+        let req = self.client.request(Method::POST, &uri_str).build()?;
 
-        let _response = self.client.execute(request).await?;
+        let _response = self.client.execute(req).await?;
 
         // 202 Accepted, no body
         Ok(())
@@ -306,7 +303,7 @@ impl ImagesClient {
     ///
     /// # Arguments
     ///
-    /// * `build_id` - The ID of the build to get info for
+    /// * `request` - The get build info request
     ///
     /// # Returns
     ///
@@ -318,21 +315,27 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, images::{ImagesClient, models::GetBuildInfoRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
-    ///     images_client.get_build_info("build-123").await?;
+    ///     let request = GetBuildInfoRequest::builder()
+    ///         .build_id("build-123".to_string())
+    ///         .build()?;
+    ///     images_client.get_build_info(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn get_build_info(&self, build_id: &str) -> Result<BuildInfoResponse, SdkError> {
-        let uri_str = format!("/images/v2/builds/{build_id}");
-        let request = self.client.request(Method::GET, &uri_str).build()?;
+    pub async fn get_build_info(
+        &self,
+        request: &models::GetBuildInfoRequest,
+    ) -> Result<BuildInfoResponse, SdkError> {
+        let uri_str = format!("/images/v2/builds/{}", request.build_id);
+        let req = self.client.request(Method::GET, &uri_str).build()?;
 
-        let response = self.client.execute(request).await?;
+        let response = self.client.execute(req).await?;
 
         Ok(response.json::<BuildInfoResponse>().await?)
     }
@@ -341,7 +344,7 @@ impl ImagesClient {
     ///
     /// # Arguments
     ///
-    /// * `build_id` - The ID of the build to stream logs for
+    /// * `request` - The stream logs request
     ///
     /// # Returns
     ///
@@ -353,14 +356,17 @@ impl ImagesClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, images::{ImagesClient, models::StreamLogsRequest}};
     /// use futures::StreamExt;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
-    ///     let mut stream = images_client.stream_logs("build-123").await?;
+    ///     let request = StreamLogsRequest::builder()
+    ///         .build_id("build-123".to_string())
+    ///         .build()?;
+    ///     let mut stream = images_client.stream_logs(&request).await?;
     ///     while let Some(log_entry) = stream.next().await {
     ///         match log_entry {
     ///             Ok(entry) => println!("Log: {:?}", entry),
@@ -372,16 +378,16 @@ impl ImagesClient {
     /// ```
     pub async fn stream_logs(
         &self,
-        build_id: &str,
+        request: &models::StreamLogsRequest,
     ) -> Result<impl Stream<Item = Result<LogEntry, SdkError>>, SdkError> {
-        let uri_str = format!("/images/v2/builds/{build_id}/logs");
-        let request = self
+        let uri_str = format!("/images/v2/builds/{}/logs", request.build_id);
+        let req = self
             .client
             .request(Method::GET, &uri_str)
             .header(ACCEPT, "text/event-stream")
             .build()?;
 
-        let response = self.client.execute(request).await?;
+        let response = self.client.execute(req).await?;
 
         let decoder: SseDecoder<LogEntry> = SseDecoder::new();
         let stream = response.bytes_stream();

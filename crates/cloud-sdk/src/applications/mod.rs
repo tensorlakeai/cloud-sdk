@@ -4,22 +4,25 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use cloud_sdk::{Client, applications::ApplicationsClient};
+//! ```rust,no_run
+//! use cloud_sdk::{Client, applications::{ApplicationsClient, models::{ListApplicationsRequest, GetApplicationRequest}}};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
 //! let apps_client = ApplicationsClient::new(client);
 //!
 //! // List applications in a namespace
-//! let apps = apps_client.list("default", None, None, None).await?;
+//! let request = ListApplicationsRequest::builder()
+//!     .namespace("default".to_string())
+//!     .build()?;
+//! let apps = apps_client.list(&request).await?;
 //!
 //! // Get a specific application
-//! let app = apps_client.get("default", "my-app").await?;
+//! let app = apps_client.get(&GetApplicationRequest::builder()
+//!     .namespace("default".to_string())
+//!     .application("my-app".to_string())
+//!     .build()?).await?;
 //!
-//! // Invoke an application
-//! let data = serde_json::json!({"input": "hello"});
-//! apps_client.send_request("default", "my-app", data).await?;
 //! Ok(())
 //! }
 //! ```
@@ -89,10 +92,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace to list applications from
-    /// * `limit` - Optional limit on number of applications to return
-    /// * `cursor` - Optional cursor for pagination
-    /// * `direction` - Optional direction for cursor-based pagination
+    /// * `request` - The list applications request
     ///
     /// # Returns
     ///
@@ -100,34 +100,37 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cloud_sdk::{Client, applications::ApplicationsClient};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.list("default", Some(10), None, None).await?;
+    ///     let request = cloud_sdk::applications::models::ListApplicationsRequest {
+    ///         namespace: "default".to_string(),
+    ///         limit: Some(10),
+    ///         cursor: None,
+    ///         direction: None,
+    ///     };
+    ///     apps_client.list(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn list(
         &self,
-        namespace: &str,
-        limit: Option<i32>,
-        cursor: Option<&str>,
-        direction: Option<models::CursorDirection>,
+        request: &models::ListApplicationsRequest,
     ) -> Result<models::ApplicationsList, SdkError> {
-        let uri_str = format!("/v1/namespaces/{namespace}/applications");
+        let uri_str = format!("/v1/namespaces/{}/applications", request.namespace);
         let mut req_builder = self.client.request(Method::GET, &uri_str);
 
-        if let Some(ref param_value) = limit {
-            req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
+        if let Some(ref param_value) = request.limit {
+            req_builder = req_builder.query(&[("limit", param_value)]);
         }
-        if let Some(ref param_value) = cursor {
-            req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
+        if let Some(ref param_value) = request.cursor {
+            req_builder = req_builder.query(&[("cursor", param_value)]);
         }
-        if let Some(ref param_value) = direction {
-            req_builder = req_builder.query(&[("direction", &param_value.to_string())]);
+        if let Some(ref param_value) = request.direction {
+            req_builder = req_builder.query(&[("direction", param_value)]);
         }
 
         let req = req_builder.build()?;
@@ -143,8 +146,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
+    /// * `request` - The get application request
     ///
     /// # Returns
     ///
@@ -152,22 +154,28 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::GetApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.get("default", "my-app").await?;
+    ///     let request = GetApplicationRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .build()?;
+    ///     apps_client.get(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn get(
         &self,
-        namespace: &str,
-        application: &str,
+        request: &models::GetApplicationRequest,
     ) -> Result<models::Application, SdkError> {
-        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}",);
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}",
+            request.namespace, request.application
+        );
         let req_builder = self.client.request(Method::GET, &uri_str);
 
         let req = req_builder.build()?;
@@ -183,41 +191,42 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace for the application
-    /// * `application` - The application model data
-    /// * `code_zip` - The application code as ZIP file data
+    /// * `request` - The upsert application request
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::{UpsertApplicationRequest, ApplicationManifest}}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     // Note: Requires constructing a full Application model with all required fields
+    ///     // Note: Requires constructing a full ApplicationManifest model with all required fields
     ///     // This is typically done by parsing from configuration files or build manifests
     ///     let code_zip: Vec<u8> = vec![/* zip file bytes */];
-    ///     // let app_data = Application { ... }; // construct full application data
-    ///     // apps_client.upsert("default", app_data, code_zip).await?;
+    ///     let app_data = ApplicationManifest::builder()
+    ///         .name("my-app")
+    ///         .version("1.0.0")
+    ///         .build()?;
+    ///     let request = UpsertApplicationRequest::builder()
+    ///         .namespace("default")
+    ///         .application_manifest(app_data)
+    ///         .code_zip(code_zip)
+    ///         .build()?;
+    ///     apps_client.upsert(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn upsert(
-        &self,
-        namespace: &str,
-        application: models::Application,
-        code_zip: Vec<u8>,
-    ) -> Result<(), SdkError> {
+    pub async fn upsert(&self, request: &models::UpsertApplicationRequest) -> Result<(), SdkError> {
         let mut multipart_form = Form::new();
 
-        let manifest_json = serde_json::to_string(&application)?;
+        let manifest_json = serde_json::to_string(&request.application_manifest)?;
         multipart_form = multipart_form.text("application", manifest_json);
 
-        let file_part = Part::bytes(code_zip).file_name("code.zip");
+        let file_part = Part::bytes(request.code_zip.clone()).file_name("code.zip");
         multipart_form = multipart_form.part("code", file_part);
 
-        let uri_str = format!("/v1/namespaces/{namespace}/applications");
+        let uri_str = format!("/v1/namespaces/{}/applications", request.namespace);
         let req_builder = self
             .client
             .request(Method::POST, &uri_str)
@@ -233,23 +242,29 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application to delete
+    /// * `request` - The delete application request
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.delete("default", "my-app").await?;
+    ///     let request = DeleteApplicationRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .build()?;
+    ///     apps_client.delete(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn delete(&self, namespace: &str, application: &str) -> Result<(), SdkError> {
-        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
+    pub async fn delete(&self, request: &models::DeleteApplicationRequest) -> Result<(), SdkError> {
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}",
+            request.namespace, request.application
+        );
         let req_builder = self.client.request(Method::DELETE, &uri_str);
 
         let req = req_builder.build()?;
@@ -262,10 +277,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application to invoke
-    /// * `body` - JSON data to send with the invocation
-    /// * `stream` - Whether to return a stream of progress events instead of just the request ID
+    /// * `request` - The invoke application request
     ///
     /// # Returns
     ///
@@ -273,15 +285,20 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, InvokeResponse, models::InvokeApplicationRequest}};
     /// use serde_json;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let data = serde_json::json!({"input": "hello world"});
-    ///     let response = apps_client.invoke("default", "my-app", data, false).await?;
+    ///     let request = InvokeApplicationRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .body(data)
+    ///         .build()?;
+    ///     let response = apps_client.invoke(&request).await?;
     ///     match response {
     ///         InvokeResponse::RequestId(id) => println!("Request ID: {}", id),
     ///         InvokeResponse::Stream(_) => unreachable!(),
@@ -291,26 +308,26 @@ impl ApplicationsClient {
     /// ```
     pub async fn invoke(
         &self,
-        namespace: &str,
-        application: &str,
-        body: serde_json::Value,
-        stream: bool,
+        request: &models::InvokeApplicationRequest,
     ) -> Result<InvokeResponse, SdkError> {
-        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}");
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}",
+            request.namespace, request.application
+        );
         let mut req_builder = self.client.request(Method::POST, &uri_str);
 
-        if stream {
+        if request.stream {
             req_builder = req_builder.header(ACCEPT, "text/event-stream");
         } else {
             req_builder = req_builder.header(ACCEPT, "application/json");
         }
 
-        req_builder = req_builder.json(&body);
+        req_builder = req_builder.json(&request.body);
 
         let req = req_builder.build()?;
         let resp = self.client.execute(req).await?;
 
-        if stream {
+        if request.stream {
             let decoder: SseDecoder<models::RequestStateChangeEvent> = SseDecoder::new();
             let stream = resp.bytes_stream();
             let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
@@ -333,11 +350,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `limit` - Optional limit on number of requests to return
-    /// * `cursor` - Optional cursor for pagination
-    /// * `direction` - Optional direction for cursor-based pagination
+    /// * `request` - The list requests request
     ///
     /// # Returns
     ///
@@ -345,34 +358,38 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::ListRequestsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.list_requests("default", "my-app", Some(10), None, None).await?;
+    ///     let request = ListRequestsRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .limit(10)
+    ///         .build()?;
+    ///     apps_client.list_requests(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn list_requests(
         &self,
-        namespace: &str,
-        application: &str,
-        limit: Option<i32>,
-        cursor: Option<&str>,
-        direction: Option<models::CursorDirection>,
+        request: &models::ListRequestsRequest,
     ) -> Result<models::ApplicationRequests, SdkError> {
-        let uri_str = format!("/v1/namespaces/{namespace}/applications/{application}/requests");
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}/requests",
+            request.namespace, request.application
+        );
         let mut req_builder = self.client.request(Method::GET, &uri_str);
 
-        if let Some(ref param_value) = limit {
+        if let Some(ref param_value) = request.limit {
             req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
         }
-        if let Some(ref param_value) = cursor {
+        if let Some(ref param_value) = request.cursor {
             req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
         }
-        if let Some(ref param_value) = direction {
+        if let Some(ref param_value) = request.direction {
             req_builder = req_builder.query(&[("direction", &param_value.to_string())]);
         }
 
@@ -389,30 +406,33 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `request_id` - The ID of the request to delete
+    /// * `request` - The delete request request
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteRequestRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.delete_request("default", "my-app", "request-123").await?;
+    ///     let request = DeleteRequestRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .build()?;
+    ///     apps_client.delete_request(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn delete_request(
         &self,
-        namespace: &str,
-        application: &str,
-        request_id: &str,
+        request: &models::DeleteRequestRequest,
     ) -> Result<(), SdkError> {
-        let uri_str =
-            format!("/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}");
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}/requests/{}",
+            request.namespace, request.application, request.request_id
+        );
         let req_builder = self.client.request(Method::DELETE, &uri_str);
 
         let req = req_builder.build()?;
@@ -425,10 +445,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `request_id` - The ID of the request
-    /// * `function_call_id` - The ID of the specific function call
+    /// * `request` - The download function output request
     ///
     /// # Returns
     ///
@@ -436,25 +453,29 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DownloadFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     apps_client.download_function_output("default", "my-app", "request-123", "func-456").await?;
+    ///     let request = DownloadFunctionOutputRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .function_call_id("func-456")
+    ///         .build()?;
+    ///     apps_client.download_function_output(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn download_function_output(
         &self,
-        namespace: &str,
-        application: &str,
-        request_id: &str,
-        function_call_id: &str,
+        request: &models::DownloadFunctionOutputRequest,
     ) -> Result<models::DownloadOutput, SdkError> {
         let uri_str = format!(
-            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output/{function_call_id}"
+            "/v1/namespaces/{}/applications/{}/requests/{}/output/{}",
+            request.namespace, request.application, request.request_id, request.function_call_id
         );
         let req_builder = self.client.request(reqwest::Method::GET, &uri_str);
 
@@ -478,9 +499,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `request_id` - The ID of the request to stream progress for
+    /// * `request` - The stream progress request
     ///
     /// # Returns
     ///
@@ -488,14 +507,19 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::StreamProgressRequest}};
     /// use futures::StreamExt;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     let mut stream = apps_client.stream_progress("default", "my-app", "request-123").await?;
+    ///     let request = StreamProgressRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .build()?;
+    ///     let mut stream = apps_client.stream_progress(&request).await?;
     ///     while let Some(event) = stream.next().await {
     ///         match event {
     ///             Ok(event) => println!("Event: {:?}", event),
@@ -507,13 +531,12 @@ impl ApplicationsClient {
     /// ```
     pub async fn stream_progress(
         &self,
-        namespace: &str,
-        application: &str,
-        request_id: &str,
+        request: &models::StreamProgressRequest,
     ) -> Result<impl Stream<Item = Result<models::RequestStateChangeEvent, SdkError>>, SdkError>
     {
         let uri_str = format!(
-            "/namespaces/{namespace}/applications/{application}/requests/{request_id}/progress"
+            "/namespaces/{}/applications/{}/requests/{}/progress",
+            request.namespace, request.application, request.request_id
         );
         let req_builder = self
             .client
@@ -536,9 +559,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `request_id` - The ID of the request
+    /// * `request` - The check function output request
     ///
     /// # Returns
     ///
@@ -546,13 +567,18 @@ impl ApplicationsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::CheckFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     if let Some(metadata) = apps_client.check_function_output("default", "my-app", "request-123").await? {
+    ///     let request = CheckFunctionOutputRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .build()?;
+    ///     if let Some(metadata) = apps_client.check_function_output(&request).await? {
     ///         println!("Output available, size: {:?}", metadata.content_length);
     ///     }
     ///     Ok(())
@@ -560,12 +586,11 @@ impl ApplicationsClient {
     /// ```
     pub async fn check_function_output(
         &self,
-        namespace: &str,
-        application: &str,
-        request_id: &str,
+        request: &models::CheckFunctionOutputRequest,
     ) -> Result<Option<models::DownloadOutput>, SdkError> {
         let uri_str = format!(
-            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output"
+            "/v1/namespaces/{}/applications/{}/requests/{}/output",
+            request.namespace, request.application, request.request_id
         );
         let req_builder = self.client.request(Method::HEAD, &uri_str);
 
@@ -587,9 +612,7 @@ impl ApplicationsClient {
     ///
     /// # Arguments
     ///
-    /// * `namespace` - The namespace containing the application
-    /// * `application` - The name of the application
-    /// * `request_id` - The ID of the request
+    /// * `request` - The download request output request
     ///
     /// # Returns
     ///
@@ -598,21 +621,25 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::applications::ApplicationsClient;
+    /// use cloud_sdk::applications::{ApplicationsClient, models::DownloadRequestOutputRequest};
     ///
     /// async fn example(apps_client: &ApplicationsClient) -> Result<(), Box<dyn std::error::Error>> {
-    ///     let output = apps_client.download_request_output("default", "my-app", "request-123").await?;
+    ///     let request = DownloadRequestOutputRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .build()?;
+    ///     let output = apps_client.download_request_output(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn download_request_output(
         &self,
-        namespace: &str,
-        application: &str,
-        request_id: &str,
+        request: &models::DownloadRequestOutputRequest,
     ) -> Result<models::DownloadOutput, SdkError> {
         let uri_str = format!(
-            "/v1/namespaces/{namespace}/applications/{application}/requests/{request_id}/output",
+            "/v1/namespaces/{}/applications/{}/requests/{}/output",
+            request.namespace, request.application, request.request_id
         );
         let req_builder = self.client.request(Method::GET, &uri_str);
 

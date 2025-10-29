@@ -5,21 +5,26 @@
 //! ## Usage
 //!
 //! ```rust
-//! use cloud_sdk::{Sdk, secrets::models::CreateSecret};
+//! use cloud_sdk::{Sdk, secrets::models::{UpsertSecretRequest, ListSecretsRequest}};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
 //!     let secrets_client = sdk.secrets();
 //!
 //!     // Create a secret
-//!     let create_req = CreateSecret {
-//!         name: "my-secret".to_string(),
-//!         value: "secret-value".to_string(),
-//!     };
-//!     secrets_client.create("org-id", "project-id", create_req).await?;
+//!     let create_req = UpsertSecretRequest::builder()
+//!         .organization_id("org-id")
+//!         .project_id("project-id")
+//!         .secret(("my-secret", "secret-value"))
+//!         .build()?;
+//!     secrets_client.upsert(create_req).await?;
 //!
 //!     // List secrets
-//!     secrets_client.list("org-id", "project-id", None, None, None).await?;
+//!     let list_req = ListSecretsRequest::builder()
+//!         .organization_id("org-id")
+//!         .project_id("project-id")
+//!         .build()?;
+//!     secrets_client.list(&list_req).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -47,7 +52,7 @@ impl SecretsClient {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cloud_sdk::{Client, secrets::SecretsClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -58,57 +63,6 @@ impl SecretsClient {
     /// ```
     pub fn new(client: Client) -> Self {
         Self { client }
-    }
-
-    /// Create a new secret.
-    ///
-    /// # Arguments
-    ///
-    /// * `organization_id` - The ID of the organization
-    /// * `project_id` - The ID of the project
-    /// * `create_secret` - The secret creation request
-    ///
-    /// # Returns
-    ///
-    /// Returns the created secret.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::CreateSecret}};
-    ///
-    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
-    ///     let secrets_client = SecretsClient::new(client);
-    ///     let create_req = CreateSecret {
-    ///         name: "api-key".to_string(),
-    ///         value: "secret123".to_string(),
-    ///     };
-    ///     secrets_client.create("org-123", "proj-456", create_req).await?;
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn create(
-        &self,
-        organization_id: &str,
-        project_id: &str,
-        create_secret: CreateSecret,
-    ) -> Result<Secret, SdkError> {
-        let uri_str =
-            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
-
-        let req_builder = self
-            .client
-            .request(Method::POST, &uri_str)
-            .json(&create_secret);
-
-        let req = req_builder.build()?;
-        let resp = self.client.execute(req).await?;
-
-        let bytes = resp.bytes().await?;
-        let secret = serde_json::from_reader(bytes.as_ref())?;
-
-        Ok(secret)
     }
 
     /// Upsert secrets (create or update).
@@ -126,33 +80,33 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::{UpsertSecret, CreateSecret}}};
+    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::UpsertSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let secrets_client = SecretsClient::new(client);
-    ///     let create_req = CreateSecret {
-    ///         name: "api-key".to_string(),
-    ///         value: "secret123".to_string(),
-    ///     };
-    ///     let upsert_req = UpsertSecret::Single(create_req);
-    ///     secrets_client.upsert("org-123", "proj-456", upsert_req).await?;
+    ///     let req = UpsertSecretRequest::builder()
+    ///         .organization_id("org-123")
+    ///         .project_id("proj-456")
+    ///         .secret(("api-key", "secret123"))
+    ///         .build()?;
+    ///     secrets_client.upsert(req).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn upsert(
         &self,
-        organization_id: &str,
-        project_id: &str,
-        upsert_secret: UpsertSecret,
+        request: UpsertSecretRequest,
     ) -> Result<UpsertSecretResponse, SdkError> {
-        let uri_str =
-            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
+        let uri_str = format!(
+            "/platform/v1/organizations/{}/projects/{}/secrets",
+            request.organization_id, request.project_id
+        );
 
         let req_builder = self
             .client
             .request(Method::PUT, &uri_str)
-            .json(&upsert_secret);
+            .json(&request.secret);
 
         let req = req_builder.build()?;
         let resp = self.client.execute(req).await?;
@@ -167,11 +121,7 @@ impl SecretsClient {
     ///
     /// # Arguments
     ///
-    /// * `organization_id` - The ID of the organization
-    /// * `project_id` - The ID of the project
-    /// * `next` - Optional cursor for next page
-    /// * `prev` - Optional cursor for previous page
-    /// * `page_size` - Optional page size (default 10, max 100)
+    /// * `request` - The list secrets request
     ///
     /// # Returns
     ///
@@ -180,36 +130,39 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, secrets::SecretsClient};
+    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::ListSecretsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let secrets_client = SecretsClient::new(client);
-    ///     secrets_client.list("org-123", "proj-456", None, None, Some(20)).await?;
+    ///     let request = ListSecretsRequest::builder()
+    ///         .organization_id("org-123")
+    ///         .project_id("proj-456")
+    ///         .page_size(20)
+    ///         .build()?;
+    ///     secrets_client.list(&request).await?;
     ///     Ok(())
     /// }
     /// ```
     pub async fn list(
         &self,
-        organization_id: &str,
-        project_id: &str,
-        next: Option<&str>,
-        prev: Option<&str>,
-        page_size: Option<i32>,
+        request: &models::ListSecretsRequest,
     ) -> Result<SecretsList, SdkError> {
-        let uri_str =
-            format!("/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets");
+        let uri_str = format!(
+            "/platform/v1/organizations/{}/projects/{}/secrets",
+            request.organization_id, request.project_id
+        );
 
         let mut req_builder = self.client.request(Method::GET, &uri_str);
 
-        if let Some(ref param_value) = next {
-            req_builder = req_builder.query(&[("next", &param_value.to_string())]);
+        if let Some(param_value) = &request.next {
+            req_builder = req_builder.query(&[("next", param_value)]);
         }
-        if let Some(ref param_value) = prev {
-            req_builder = req_builder.query(&[("prev", &param_value.to_string())]);
+        if let Some(param_value) = &request.prev {
+            req_builder = req_builder.query(&[("prev", param_value)]);
         }
-        if let Some(ref param_value) = page_size {
-            req_builder = req_builder.query(&[("pageSize", &param_value.to_string())]);
+        if let Some(param_value) = request.page_size {
+            req_builder = req_builder.query(&[("pageSize", param_value)]);
         }
 
         let req = req_builder.build()?;
@@ -225,9 +178,7 @@ impl SecretsClient {
     ///
     /// # Arguments
     ///
-    /// * `organization_id` - The ID of the organization
-    /// * `project_id` - The ID of the project
-    /// * `secret_id` - The ID of the secret
+    /// * `request` - The get secret request
     ///
     /// # Returns
     ///
@@ -235,24 +186,25 @@ impl SecretsClient {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, secrets::SecretsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::GetSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let secrets_client = SecretsClient::new(client);
-    ///     secrets_client.get("org-123", "proj-456", "secret-789").await?;
+    ///     let request = GetSecretRequest::builder()
+    ///         .organization_id("org-123")
+    ///         .project_id("proj-456")
+    ///         .secret_id("secret-789")
+    ///         .build()?;
+    ///     secrets_client.get(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn get(
-        &self,
-        organization_id: &str,
-        project_id: &str,
-        secret_id: &str,
-    ) -> Result<Secret, SdkError> {
+    pub async fn get(&self, request: &models::GetSecretRequest) -> Result<Secret, SdkError> {
         let uri_str = format!(
-            "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
+            "/platform/v1/organizations/{}/projects/{}/secrets/{}",
+            request.organization_id, request.project_id, request.secret_id
         );
 
         let req_builder = self.client.request(Method::GET, &uri_str);
@@ -270,30 +222,29 @@ impl SecretsClient {
     ///
     /// # Arguments
     ///
-    /// * `organization_id` - The ID of the organization
-    /// * `project_id` - The ID of the project
-    /// * `secret_id` - The ID of the secret to delete
+    /// * `request` - The delete secret request
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use cloud_sdk::{Client, secrets::SecretsClient};
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::DeleteSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let secrets_client = SecretsClient::new(client);
-    ///     secrets_client.delete("org-123", "proj-456", "secret-789").await?;
+    ///     let request = DeleteSecretRequest::builder()
+    ///         .organization_id("org-123")
+    ///         .project_id("proj-456")
+    ///         .secret_id("secret-789")
+    ///         .build()?;
+    ///     secrets_client.delete(&request).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn delete(
-        &self,
-        organization_id: &str,
-        project_id: &str,
-        secret_id: &str,
-    ) -> Result<(), SdkError> {
+    pub async fn delete(&self, request: &models::DeleteSecretRequest) -> Result<(), SdkError> {
         let uri_str = format!(
-            "/platform/v1/organizations/{organization_id}/projects/{project_id}/secrets/{secret_id}"
+            "/platform/v1/organizations/{}/projects/{}/secrets/{}",
+            request.organization_id, request.project_id, request.secret_id
         );
 
         let req_builder = self.client.request(reqwest::Method::DELETE, &uri_str);

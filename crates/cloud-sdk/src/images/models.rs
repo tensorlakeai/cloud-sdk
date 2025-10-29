@@ -1,3 +1,4 @@
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
 /// Internal representation of build information from the API.
@@ -75,20 +76,33 @@ pub struct CancelBuildResponse {
 }
 
 /// Request parameters for building an image.
-#[derive(Debug, Clone)]
+#[derive(Builder, Clone, Debug)]
 pub struct ImageBuildRequest {
     /// The name of the image to build.
+    #[builder(setter(into))]
     pub image_name: String,
     /// The tag for the image.
+    #[builder(setter(into))]
     pub image_tag: String,
     /// The build context data as a tar.gz archive.
+    #[builder(setter(into))]
     pub context_data: Vec<u8>,
     /// The name of the application this image belongs to.
+    #[builder(setter(into))]
     pub application_name: String,
     /// The version of the application.
+    #[builder(setter(into))]
     pub application_version: String,
     /// The name of the function in the application.
+    #[builder(setter(into))]
     pub function_name: String,
+}
+
+impl ImageBuildRequest {
+    /// Creates a new `ImageBuildRequest` builder.
+    pub fn builder() -> ImageBuildRequestBuilder {
+        ImageBuildRequestBuilder::default()
+    }
 }
 
 /// Result of an image build operation.
@@ -170,4 +184,62 @@ pub enum RegistryType {
     ECR,
     /// Docker registry.
     Docker,
+}
+
+#[derive(Builder, Debug)]
+pub struct CancelBuildRequest {
+    #[builder(setter(into))]
+    pub build_id: String,
+}
+
+impl CancelBuildRequest {
+    pub fn builder() -> CancelBuildRequestBuilder {
+        CancelBuildRequestBuilder::default()
+    }
+}
+
+#[derive(Builder, Debug)]
+pub struct GetBuildInfoRequest {
+    #[builder(setter(into))]
+    pub build_id: String,
+}
+
+impl GetBuildInfoRequest {
+    pub fn builder() -> GetBuildInfoRequestBuilder {
+        GetBuildInfoRequestBuilder::default()
+    }
+}
+
+#[derive(Builder, Debug)]
+pub struct ListBuildsRequest {
+    #[builder(default, setter(strip_option))]
+    pub page: Option<i32>,
+    #[builder(default, setter(strip_option))]
+    pub page_size: Option<i32>,
+    #[builder(default, setter(strip_option))]
+    pub status: Option<BuildStatus>,
+    #[builder(default, setter(into, strip_option))]
+    pub application_name: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub image_name: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub function_name: Option<String>,
+}
+
+impl ListBuildsRequest {
+    pub fn builder() -> ListBuildsRequestBuilder {
+        ListBuildsRequestBuilder::default()
+    }
+}
+
+#[derive(Builder, Debug)]
+pub struct StreamLogsRequest {
+    #[builder(setter(into))]
+    pub build_id: String,
+}
+
+impl StreamLogsRequest {
+    pub fn builder() -> StreamLogsRequestBuilder {
+        StreamLogsRequestBuilder::default()
+    }
 }
