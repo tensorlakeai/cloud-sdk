@@ -23,6 +23,7 @@ tokio-util = { version = "0.7", features = ["codec", "io"] }
 bytes = "1.0"
 pin-project-lite = "0.2"
 thiserror = "1.0"
+uuid = { version = "1.18.1", features = ["serde"] }
 
 [dev-dependencies]
 httpmock = "0.7"

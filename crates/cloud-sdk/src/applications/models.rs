@@ -3,6 +3,7 @@ use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct ApplicationManifest {
@@ -337,6 +338,27 @@ pub struct ShallowRequest {
     pub id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LogSignal {
+    pub timestamp: u64,
+    pub uuid: Uuid,
+    pub namespace: String,
+    pub application: String,
+    #[serde(rename = "resourceAttributes")]
+    pub resource_attributes: Vec<(String, String)>,
+    pub body: String,
+    #[serde(rename = "logAttributes")]
+    pub log_attributes: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventsResponse {
+    pub logs: Vec<LogSignal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_token: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
@@ -596,5 +618,35 @@ pub struct UpsertApplicationRequest {
 impl UpsertApplicationRequest {
     pub fn builder() -> UpsertApplicationRequestBuilder {
         UpsertApplicationRequestBuilder::default()
+    }
+}
+
+#[derive(Builder, Debug)]
+pub struct GetLogsRequest {
+    #[builder(setter(into))]
+    pub namespace: String,
+    #[builder(setter(into))]
+    pub application: String,
+    #[builder(default, setter(into, strip_option))]
+    pub request_id: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub container_id: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub function: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub next_token: Option<String>,
+    #[builder(default, setter(strip_option))]
+    pub head: Option<usize>,
+    #[builder(default, setter(strip_option))]
+    pub tail: Option<usize>,
+    #[builder(default, setter(into, strip_option))]
+    pub ignore: Option<String>,
+    #[builder(default, setter(into, strip_option))]
+    pub function_executor: Option<String>,
+}
+
+impl GetLogsRequest {
+    pub fn builder() -> GetLogsRequestBuilder {
+        GetLogsRequestBuilder::default()
     }
 }

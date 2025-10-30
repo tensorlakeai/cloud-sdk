@@ -658,4 +658,75 @@ impl ApplicationsClient {
 
         Ok(output)
     }
+
+    /// Get logs for an application.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The get logs request
+    ///
+    /// # Returns
+    ///
+    /// Returns the logs for the application matching the request filters.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::GetLogsRequest}};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let apps_client = ApplicationsClient::new(client);
+    ///     let request = GetLogsRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .tail(100)
+    ///         .build()?;
+    ///     apps_client.get_logs(&request).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn get_logs(
+        &self,
+        request: &models::GetLogsRequest,
+    ) -> Result<models::EventsResponse, SdkError> {
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}/logs",
+            request.namespace, request.application
+        );
+        let mut req_builder = self.client.request(Method::GET, &uri_str);
+
+        if let Some(ref param_value) = request.request_id {
+            req_builder = req_builder.query(&[("requestId", param_value)]);
+        }
+        if let Some(ref param_value) = request.container_id {
+            req_builder = req_builder.query(&[("containerId", param_value)]);
+        }
+        if let Some(ref param_value) = request.function {
+            req_builder = req_builder.query(&[("function", param_value)]);
+        }
+        if let Some(ref param_value) = request.next_token {
+            req_builder = req_builder.query(&[("nextToken", param_value)]);
+        }
+        if let Some(param_value) = request.head {
+            req_builder = req_builder.query(&[("head", &param_value.to_string())]);
+        }
+        if let Some(param_value) = request.tail {
+            req_builder = req_builder.query(&[("tail", &param_value.to_string())]);
+        }
+        if let Some(ref param_value) = request.ignore {
+            req_builder = req_builder.query(&[("ignore", param_value)]);
+        }
+        if let Some(ref param_value) = request.function_executor {
+            req_builder = req_builder.query(&[("functionExecutor", param_value)]);
+        }
+
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
+
+        let bytes = resp.bytes().await?;
+        let events_resp = serde_json::from_reader(bytes.as_ref())?;
+
+        Ok(events_resp)
+    }
 }
