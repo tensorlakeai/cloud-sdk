@@ -5,7 +5,7 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use cloud_sdk::{Client, applications::{ApplicationsClient, models::{ListApplicationsRequest, GetApplicationRequest}}};
+//! use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{ListApplicationsRequest, GetApplicationRequest}}};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -76,7 +76,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// use tensorlake_cloud_sdk::{Client, applications::ApplicationsClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -101,12 +101,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::ApplicationsClient};
+    /// use tensorlake_cloud_sdk::{Client, applications::ApplicationsClient};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let apps_client = ApplicationsClient::new(client);
-    ///     let request = cloud_sdk::applications::models::ListApplicationsRequest {
+    ///     let request = tensorlake_cloud_sdk::applications::models::ListApplicationsRequest {
     ///         namespace: "default".to_string(),
     ///         limit: Some(10),
     ///         cursor: None,
@@ -155,7 +155,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::GetApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::GetApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -196,7 +196,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::{UpsertApplicationRequest, ApplicationManifest}}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{UpsertApplicationRequest, ApplicationManifest}}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -247,7 +247,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -286,7 +286,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, InvokeResponse, models::InvokeApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, InvokeResponse, models::InvokeApplicationRequest}};
     /// use serde_json;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -359,7 +359,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::ListRequestsRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::ListRequestsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -411,7 +411,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteRequestRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteRequestRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -454,7 +454,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::DownloadFunctionOutputRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DownloadFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -508,7 +508,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::StreamProgressRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::StreamProgressRequest}};
     /// use futures::StreamExt;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -568,7 +568,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::CheckFunctionOutputRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::CheckFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -621,7 +621,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::applications::{ApplicationsClient, models::DownloadRequestOutputRequest};
+    /// use tensorlake_cloud_sdk::applications::{ApplicationsClient, models::DownloadRequestOutputRequest};
     ///
     /// async fn example(apps_client: &ApplicationsClient) -> Result<(), Box<dyn std::error::Error>> {
     ///     let request = DownloadRequestOutputRequest::builder()
@@ -672,7 +672,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, applications::{ApplicationsClient, models::GetLogsRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::GetLogsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;

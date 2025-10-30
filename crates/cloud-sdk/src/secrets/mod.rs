@@ -5,7 +5,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use cloud_sdk::{Sdk, secrets::models::{UpsertSecretRequest, ListSecretsRequest}};
+//! use tensorlake_cloud_sdk::{Sdk, secrets::models::{UpsertSecretRequest, ListSecretsRequest}};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -53,7 +53,7 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, secrets::SecretsClient};
+    /// use tensorlake_cloud_sdk::{Client, secrets::SecretsClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -80,7 +80,7 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::UpsertSecretRequest}};
+    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::UpsertSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -130,7 +130,7 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::ListSecretsRequest}};
+    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::ListSecretsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -187,7 +187,7 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::GetSecretRequest}};
+    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::GetSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -227,7 +227,7 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, secrets::{SecretsClient, models::DeleteSecretRequest}};
+    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::DeleteSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;

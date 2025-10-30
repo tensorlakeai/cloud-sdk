@@ -7,7 +7,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
+//! use tensorlake_cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create the SDK client
@@ -31,7 +31,7 @@
 //! Provide your token when creating the SDK:
 //!
 //! ```rust,no_run
-//! use cloud_sdk::Sdk;
+//! use tensorlake_cloud_sdk::Sdk;
 //!
 //! let sdk = Sdk::new("https://api.tensorlake.ai", "your-token").unwrap();
 //! ```
@@ -47,7 +47,7 @@
 //! The SDK provides detailed error types for different scenarios:
 //!
 //! ```rust,no_run
-//! use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
+//! use tensorlake_cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -84,7 +84,7 @@ pub use client::*;
 /// ## Example
 ///
 /// ```rust
-/// use cloud_sdk::Sdk;
+/// use tensorlake_cloud_sdk::Sdk;
 ///
 /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
 ///
@@ -116,7 +116,7 @@ impl Sdk {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::Sdk;
+    /// use tensorlake_cloud_sdk::Sdk;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
@@ -142,7 +142,7 @@ impl Sdk {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
+    /// use tensorlake_cloud_sdk::{Sdk, applications::models::ListApplicationsRequest};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -173,7 +173,7 @@ impl Sdk {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::Sdk;
+    /// use tensorlake_cloud_sdk::Sdk;
     ///
     /// let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
     /// let images_client = sdk.images();
@@ -199,7 +199,7 @@ impl Sdk {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Sdk, secrets::models::ListSecretsRequest};
+    /// use tensorlake_cloud_sdk::{Sdk, secrets::models::ListSecretsRequest};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key")?;

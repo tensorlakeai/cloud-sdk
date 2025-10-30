@@ -6,7 +6,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use cloud_sdk::{Sdk, images::models::ImageBuildRequest};
+//! use tensorlake_cloud_sdk::{Sdk, images::models::ImageBuildRequest};
 //!
 //! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
 //! let images_client = sdk.images();
@@ -54,7 +54,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, images::ImagesClient};
+    /// use tensorlake_cloud_sdk::{Client, images::ImagesClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -86,7 +86,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust
-    /// use cloud_sdk::{Client, images::{ImagesClient, models::ImageBuildRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::ImageBuildRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -202,7 +202,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, images::{ImagesClient, models::ListBuildsRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::ListBuildsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -277,7 +277,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, images::{ImagesClient, models::CancelBuildRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::CancelBuildRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -316,7 +316,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, images::{ImagesClient, models::GetBuildInfoRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::GetBuildInfoRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
@@ -357,7 +357,7 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use cloud_sdk::{Client, images::{ImagesClient, models::StreamLogsRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::StreamLogsRequest}};
     /// use futures::StreamExt;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
