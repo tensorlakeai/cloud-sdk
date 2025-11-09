@@ -10,6 +10,7 @@ edition = "2024"
 arbitrary = { version = "1.4.2", features = ["derive"] }
 bytes = { workspace = true }
 derive_builder = { workspace = true }
+flate2 = "1.0"
 futures = { workspace = true }
 hex = { workspace = true }
 pin-project-lite = { workspace = true }
@@ -20,6 +21,7 @@ serde_json = { workspace = true }
 serde_repr = { workspace = true }
 serde_with = { workspace = true }
 sha2 = { workspace = true }
+tar = "0.4"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -29,8 +31,10 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 data-encoding = "2.5"
+flate2 = "1.0"
 needs_env_var = "1.1"
 reqwest-vcr = "0.3.0"
+tar = "0.4"
 zip = "0.6"
 
 [lints.clippy]

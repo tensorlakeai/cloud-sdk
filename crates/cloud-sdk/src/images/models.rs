@@ -1,6 +1,9 @@
 use arbitrary::Arbitrary;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::io::{self, Write};
+use url;
 
 /// Internal representation of build information from the API.
 #[derive(Debug, Serialize, Deserialize)]
@@ -243,4 +246,182 @@ impl StreamLogsRequest {
     pub fn builder() -> StreamLogsRequestBuilder {
         StreamLogsRequestBuilder::default()
     }
+}
+
+/// Type of image build operation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImageBuildOperationType {
+    /// Copy files from the build context.
+    COPY,
+    /// Run a command.
+    RUN,
+    /// Add files or URLs.
+    ADD,
+    /// Set environment variables.
+    ENV,
+}
+
+/// Image build operation.
+#[derive(Debug, Clone, Builder)]
+pub struct ImageBuildOperation {
+    /// The type of operation.
+    pub operation_type: ImageBuildOperationType,
+    /// Arguments for the operation.
+    #[builder(setter(into))]
+    pub args: Vec<String>,
+    /// Options for the operation.
+    #[builder(default, setter(into))]
+    pub options: HashMap<String, String>,
+}
+
+impl ImageBuildOperation {
+    pub fn builder() -> ImageBuildOperationBuilder {
+        ImageBuildOperationBuilder::default()
+    }
+}
+
+/// Image definition for building container images.
+#[derive(Debug, Clone, Builder)]
+pub struct Image {
+    /// The name of the image.
+    #[builder(setter(into))]
+    pub name: String,
+    /// The base image to use.
+    #[builder(setter(into))]
+    pub base_image: String,
+    /// List of build operations.
+    #[builder(default)]
+    pub build_operations: Vec<ImageBuildOperation>,
+}
+
+impl Image {
+    pub fn builder() -> ImageBuilder {
+        ImageBuilder::default()
+    }
+
+    /// Generate the Dockerfile content for this image.
+    pub fn dockerfile_content(&self, sdk_version: &str) -> String {
+        let mut lines = vec![
+            format!("FROM {}", self.base_image),
+            "WORKDIR /app".to_string(),
+        ];
+
+        for op in &self.build_operations {
+            lines.push(render_build_operation(op));
+        }
+
+        lines.push(format!("RUN pip install tensorlake=={}", sdk_version));
+
+        lines.join("\n")
+    }
+
+    /// Create a tar.gz archive containing the build context.
+    pub fn create_context_archive<W: Write>(&self, writer: W, sdk_version: &str) -> io::Result<()> {
+        let gz_writer = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
+        let mut tar = tar::Builder::new(gz_writer);
+
+        for op in &self.build_operations {
+            match op.operation_type {
+                ImageBuildOperationType::COPY => {
+                    if let Some(src) = op.args.first()
+                        && std::path::Path::new(src).exists() {
+                            tar.append_dir_all(src, src)?;
+                        }
+                }
+                ImageBuildOperationType::ADD => {
+                    if let Some(src) = op.args.first() {
+                        if is_url(src) || is_git_repo_url(src) {
+                            // Skip URLs and Git repos
+                            continue;
+                        }
+                        if !std::path::Path::new(src).exists() {
+                            // Skip non-existent files
+                            continue;
+                        }
+                        if is_inside_git_dir(src) {
+                            // Skip files inside .git directory
+                            continue;
+                        }
+                        tar.append_path(src)?;
+                    }
+                }
+                _ => {} // Other operations don't add files
+            }
+        }
+
+        // Add Dockerfile
+        let dockerfile = self.dockerfile_content(sdk_version);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(dockerfile.len() as u64);
+        header.set_mode(0o644);
+        tar.append_data(&mut header, "Dockerfile", dockerfile.as_bytes())?;
+
+        tar.finish()?;
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for ImageBuildOperationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageBuildOperationType::COPY => write!(f, "COPY"),
+            ImageBuildOperationType::RUN => write!(f, "RUN"),
+            ImageBuildOperationType::ADD => write!(f, "ADD"),
+            ImageBuildOperationType::ENV => write!(f, "ENV"),
+        }
+    }
+}
+
+fn render_build_operation(op: &ImageBuildOperation) -> String {
+    let options = if op.options.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " {}",
+            op.options
+                .iter()
+                .map(|(k, v)| format!("--{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    };
+
+    let body = match op.operation_type {
+        ImageBuildOperationType::ENV => {
+            if op.args.len() >= 2 {
+                format!("{}=\"{}\"", op.args[0], op.args[1])
+            } else {
+                op.args.join(" ")
+            }
+        }
+        _ => op.args.join(" "),
+    };
+
+    format!("{}{} {}", op.operation_type, options, body)
+}
+
+fn is_url(path: &str) -> bool {
+    if let Ok(url) = url::Url::parse(path) {
+        matches!(url.scheme(), "http" | "https")
+    } else {
+        false
+    }
+}
+
+fn is_git_repo_url(path: &str) -> bool {
+    if let Ok(url) = url::Url::parse(path) {
+        if url.scheme() == "git" {
+            return true;
+        }
+        if let Some(host) = url.host_str() {
+            return host == "github.com" || host.ends_with(".github.com");
+        }
+    }
+    false
+}
+
+fn is_inside_git_dir(path: &str) -> bool {
+    std::path::Path::new(path)
+        .components()
+        .any(|c| c.as_os_str() == ".git")
 }

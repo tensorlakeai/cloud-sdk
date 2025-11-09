@@ -141,12 +141,7 @@ impl ImagesClient {
 
     /// Poll the build status until completion.
     async fn poll_build_status(&self, build_id: &str) -> Result<ImageBuildResult, SdkError> {
-        let mut attempts = 0;
         loop {
-            attempts += 1;
-            if attempts > 10 {
-                return Err(error::ImagesError::BuildTimeout { attempts }.into());
-            }
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             let uri_str = format!("/images/v2/builds/{build_id}");
