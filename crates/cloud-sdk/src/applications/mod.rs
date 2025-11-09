@@ -227,12 +227,9 @@ impl ApplicationsClient {
         multipart_form = multipart_form.part("code", file_part);
 
         let uri_str = format!("/v1/namespaces/{}/applications", request.namespace);
-        let req_builder = self
+        let req = self
             .client
-            .request(Method::POST, &uri_str)
-            .multipart(multipart_form);
-
-        let req = req_builder.build()?;
+            .build_multipart_request(Method::POST, &uri_str, multipart_form)?;
         let _resp = self.client.execute(req).await?;
 
         Ok(())
@@ -314,17 +311,19 @@ impl ApplicationsClient {
             "/v1/namespaces/{}/applications/{}",
             request.namespace, request.application
         );
-        let mut req_builder = self.client.request(Method::POST, &uri_str);
+        let req_builder = self.client.base_request(Method::POST, &uri_str);
 
-        if request.stream {
-            req_builder = req_builder.header(ACCEPT, "text/event-stream");
+        let req = if request.stream {
+            req_builder
+                .header(ACCEPT, "text/event-stream")
+                .json(&request.body)
+                .build()?
         } else {
-            req_builder = req_builder.header(ACCEPT, "application/json");
-        }
-
-        req_builder = req_builder.json(&request.body);
-
-        let req = req_builder.build()?;
+            req_builder
+                .header(ACCEPT, "application/json")
+                .json(&request.body)
+                .build()?
+        };
         let resp = self.client.execute(req).await?;
 
         if request.stream {

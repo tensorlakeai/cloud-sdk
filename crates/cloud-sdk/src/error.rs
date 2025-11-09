@@ -33,6 +33,10 @@ pub enum SdkError {
     #[error(transparent)]
     Http(#[from] reqwest::Error),
 
+    /// Reqwest middleware errors
+    #[error(transparent)]
+    Middleware(#[from] reqwest_middleware::Error),
+
     /// Errors specific to the Images client
     #[error(transparent)]
     Images(#[from] ImagesError),
@@ -40,6 +44,10 @@ pub enum SdkError {
     /// Invalid header value during client initialization
     #[error("Invalid header value: {0}")]
     InvalidHeaderValue(String),
+
+    /// Client configuration error
+    #[error("Client error: {0}")]
+    ClientError(String),
 
     /// General IO errors
     #[error(transparent)]

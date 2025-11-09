@@ -103,12 +103,9 @@ impl SecretsClient {
             request.organization_id, request.project_id
         );
 
-        let req_builder = self
+        let req = self
             .client
-            .request(Method::PUT, &uri_str)
-            .json(&request.secret);
-
-        let req = req_builder.build()?;
+            .build_json_request(Method::PUT, &uri_str, &request.secret)?;
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;

@@ -1,3 +1,4 @@
+use arbitrary::Arbitrary;
 use derive_builder::Builder;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -122,9 +123,12 @@ impl PlacementConstraintsManifest {
 pub struct Parameter {
     #[builder(setter(into))]
     pub name: String,
-    #[serde(rename = "type")]
+    #[builder(setter(into, strip_option), default)]
+    pub description: Option<String>,
+    #[builder(setter(into), default = "true")]
+    pub required: bool,
     #[builder(setter(into))]
-    pub param_type: String,
+    pub data_type: String,
 }
 
 impl Parameter {
@@ -199,7 +203,9 @@ pub struct ApplicationsList {
     pub cursor: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
+)]
 pub enum CursorDirection {
     Forward,
     Backward,
@@ -249,13 +255,17 @@ pub struct FunctionRun {
     pub status: FunctionRunStatus,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
+)]
 pub enum FunctionRunOutcome {
     Success,
     Failure,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
+)]
 pub enum FunctionRunStatus {
     Pending,
     Enqueued,
@@ -313,7 +323,9 @@ pub struct RequestError {
     pub message: String,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
+)]
 pub enum RequestFailureReason {
     #[serde(rename = "requesterror")]
     Requesterror,

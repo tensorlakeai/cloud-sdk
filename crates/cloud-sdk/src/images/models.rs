@@ -1,3 +1,4 @@
+use arbitrary::Arbitrary;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +50,7 @@ pub struct BuildListResponse {
 }
 
 /// The status of an image build.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Arbitrary)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildStatus {
     /// The build is pending.
@@ -178,7 +179,7 @@ pub struct Page<T> {
 }
 
 /// Registry type for the image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Arbitrary)]
 pub enum RegistryType {
     /// ECR registry.
     ECR,

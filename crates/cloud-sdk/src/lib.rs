@@ -128,6 +128,30 @@ impl Sdk {
         Ok(Self { client })
     }
 
+    /// Create a new SDK instance with additional middleware.
+    ///
+    /// This allows injecting custom middleware such as VCR recording/playback
+    /// or other request/response interceptors.
+    ///
+    /// # Arguments
+    ///
+    /// * `middleware` - The middleware to inject into the HTTP client
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Sdk` instance configured with the provided middleware.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client cannot be created or configured.
+    pub fn with_middleware<M>(self, middleware: M) -> Result<Self, error::SdkError>
+    where
+        M: reqwest_middleware::Middleware + 'static,
+    {
+        let client = self.client.with_middleware(middleware)?;
+        Ok(Self { client })
+    }
+
     /// Get a client for managing applications and requests.
     ///
     /// This method returns an [`ApplicationsClient`] that provides methods for:

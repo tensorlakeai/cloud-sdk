@@ -129,11 +129,9 @@ impl ImagesClient {
                     .file_name("context.tar.gz"),
             );
 
-        let request = self
-            .client
-            .request(Method::PUT, "/images/v2/builds")
-            .multipart(form)
-            .build()?;
+        let request =
+            self.client
+                .build_multipart_request(Method::PUT, "/images/v2/builds", form)?;
 
         let response = self.client.execute(request).await?;
         let json = response.json::<BuildInfo>().await?;
