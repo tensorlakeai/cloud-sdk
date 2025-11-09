@@ -10,7 +10,7 @@ pub struct Secret {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CreateSecret {
+pub struct NewSecret {
     pub name: String,
     pub value: String,
 }
@@ -18,13 +18,13 @@ pub struct CreateSecret {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum UpsertSecret {
-    Single(CreateSecret),
-    Multiple(Vec<CreateSecret>),
+    Single(NewSecret),
+    Multiple(Vec<NewSecret>),
 }
 
 impl From<(&str, &str)> for UpsertSecret {
     fn from((name, value): (&str, &str)) -> Self {
-        UpsertSecret::Single(CreateSecret {
+        UpsertSecret::Single(NewSecret {
             name: name.to_string(),
             value: value.to_string(),
         })
@@ -36,12 +36,18 @@ impl From<&[(&str, &str)]> for UpsertSecret {
         UpsertSecret::Multiple(
             secrets
                 .iter()
-                .map(|(name, value)| CreateSecret {
+                .map(|(name, value)| NewSecret {
                     name: name.to_string(),
                     value: value.to_string(),
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Vec<(&str, &str)>> for UpsertSecret {
+    fn from(secrets: Vec<(&str, &str)>) -> Self {
+        UpsertSecret::from(secrets.as_slice())
     }
 }
 
@@ -52,7 +58,7 @@ pub struct UpsertSecretRequest {
     #[builder(setter(into))]
     pub project_id: String,
     #[builder(setter(into))]
-    pub secret: UpsertSecret,
+    pub secrets: UpsertSecret,
 }
 
 impl UpsertSecretRequest {

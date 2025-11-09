@@ -105,7 +105,7 @@ impl SecretsClient {
 
         let req = self
             .client
-            .build_json_request(Method::PUT, &uri_str, &request.secret)?;
+            .build_json_request(Method::PUT, &uri_str, &request.secrets)?;
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
