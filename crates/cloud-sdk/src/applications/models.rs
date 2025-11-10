@@ -26,7 +26,6 @@ impl ApplicationManifest {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "EntrypointBuilder")]
 pub struct Entrypoint {
     #[builder(setter(into))]
     pub function_name: String,
@@ -45,7 +44,6 @@ impl Entrypoint {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "FunctionManifestBuilder")]
 pub struct FunctionManifest {
     #[builder(setter(into))]
     pub name: String,
@@ -74,7 +72,6 @@ impl FunctionManifest {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "ResourcesBuilder")]
 pub struct Resources {
     pub cpus: f64,
     pub memory_mb: i64,
@@ -90,7 +87,6 @@ impl Resources {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "RetryPolicyBuilder")]
 pub struct RetryPolicy {
     pub max_retries: i32,
     pub initial_delay_sec: f64,
@@ -105,7 +101,6 @@ impl RetryPolicy {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "PlacementConstraintsManifestBuilder")]
 pub struct PlacementConstraintsManifest {
     #[builder(setter(into), default)]
     pub filter_expressions: Vec<String>,
@@ -117,8 +112,38 @@ impl PlacementConstraintsManifest {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "ParameterBuilder")]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Builder)]
+pub struct DataType {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into), default)]
+    pub r#type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub items: Option<Box<DataType>>,
+    #[serde(
+        rename = "additionalProperties",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[builder(setter(into, strip_option), default)]
+    pub additional_properties: Option<Box<DataType>>,
+    #[serde(rename = "anyOf", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub any_of: Option<Vec<DataType>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub description: Option<String>,
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub default_value: Option<serde_json::Value>,
+}
+
+impl DataType {
+    pub fn builder() -> DataTypeBuilder {
+        DataTypeBuilder::default()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct Parameter {
     #[builder(setter(into))]
     pub name: String,
@@ -127,7 +152,7 @@ pub struct Parameter {
     #[builder(setter(into), default = "true")]
     pub required: bool,
     #[builder(setter(into))]
-    pub data_type: String,
+    pub data_type: DataType,
 }
 
 impl Parameter {
@@ -154,14 +179,26 @@ pub struct Application {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<i64>,
     pub description: String,
-    pub entrypoint: Box<EntryPointManifest>,
+    pub entrypoint: EntryPointManifest,
     pub functions: HashMap<String, ApplicationFunction>,
     pub name: String,
     pub namespace: String,
     pub tags: HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tombstoned: Option<bool>,
+    #[serde(skip_serializing)]
+    pub state: ApplicationState,
     pub version: String,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApplicationState {
+    #[default]
+    Active,
+    Disabled {
+        reason: String,
+    },
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -277,7 +314,7 @@ pub struct NodeRetryPolicy {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParameterMetadata {
-    pub data_type: String,
+    pub data_type: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

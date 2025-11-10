@@ -10,20 +10,39 @@ from tensorlake.applications import application, function
 @application()
 @function(description="A simple test function")
 def simple_test_func(input_text: str) -> str:
-output = helper_func(input_text)
-return f"Processed: {output}"
+    output = helper_func(input_text)
+    return f"Processed: {output}"
 
 @function()
 def helper_func(value: str) -> str:
-return f"Helper processed: {value}"
+    return f"Helper processed: {value}"
 "#;
 
 #[tokio::test]
 async fn test_applications_operations() {
     let sdk = common::create_sdk();
 
-    // Build test image
-    let image = common::build_test_image(&sdk, "test_app", "simple_test_func").await;
+    let application_name = "integration_test_app";
+    let application_version = "1.0.10";
+    let function_entrypoint = "simple_test_func";
+    let data_type_value = serde_json::json!({"type": "string"});
+    let data_type = DataType::builder()
+        .r#type("string".to_string())
+        .build()
+        .unwrap();
+
+    // Build test images
+    let image = common::build_test_image(
+        &sdk,
+        application_name,
+        application_version,
+        function_entrypoint,
+    )
+    .await;
+    assert_eq!(BuildStatus::Succeeded, image.status);
+
+    let image =
+        common::build_test_image(&sdk, application_name, application_version, "helper_func").await;
     assert_eq!(BuildStatus::Succeeded, image.status);
 
     let (_org_id, project_id) = common::get_org_and_project_ids();
@@ -37,7 +56,18 @@ async fn test_applications_operations() {
             zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
         // Add code zip manifest
-        let manifest = r#"{"functions":{"simple_test_func":{"name":"simple_test_func","module_import_name":"app"},"helper_func":{"name":"helper_func","module_import_name":"app"}}}"#;
+        let manifest = r#"{
+            "functions": {
+                "simple_test_func": {
+                    "name": "simple_test_func",
+                    "module_import_name": "app"
+                },
+                "helper_func": {
+                    "name": "helper_func",
+                    "module_import_name": "app"
+                }
+            }
+        }"#;
         zip_writer
             .start_file(".tensorlake_code_manifest.json", options)
             .unwrap();
@@ -77,11 +107,11 @@ async fn test_applications_operations() {
         .parameters(vec![
             Parameter::builder()
                 .name("input_text".to_string())
-                .data_type("string".to_string())
+                .data_type(data_type.clone())
                 .build()
                 .unwrap(),
         ])
-        .return_type(serde_json::json!({"type": "string"}))
+        .return_type(data_type_value.clone())
         .placement_constraints(PlacementConstraintsManifest::builder().build().unwrap())
         .max_concurrency(1)
         .build()
@@ -113,11 +143,11 @@ async fn test_applications_operations() {
         .parameters(vec![
             Parameter::builder()
                 .name("value".to_string())
-                .data_type("string".to_string())
+                .data_type(data_type.clone())
                 .build()
                 .unwrap(),
         ])
-        .return_type(serde_json::json!({"type": "string"}))
+        .return_type(data_type_value.clone())
         .placement_constraints(PlacementConstraintsManifest::builder().build().unwrap())
         .max_concurrency(1)
         .build()
@@ -126,18 +156,20 @@ async fn test_applications_operations() {
     functions.insert("simple_test_func".to_string(), function_manifest);
     functions.insert("helper_func".to_string(), helper_function_manifest);
 
+    let data_type_string = serde_json::to_string(&data_type_value).unwrap();
+
     let app_manifest = ApplicationManifest::builder()
-        .name("test_app".to_string())
+        .name(application_name.to_string())
         .description("Test application".to_string())
         .tags(HashMap::new())
-        .version("1.0.0".to_string())
+        .version(application_version.to_string())
         .functions(functions)
         .entrypoint(
             Entrypoint::builder()
-                .function_name("simple_test_func".to_string())
+                .function_name(function_entrypoint.to_string())
                 .input_serializer("json".to_string())
                 .output_serializer("json".to_string())
-                .output_type_hints_base64(BASE64.encode(r#"{"type": "string"}"#.as_bytes()))
+                .output_type_hints_base64(BASE64.encode(data_type_string.as_bytes()))
                 .build()
                 .unwrap(),
         )
@@ -173,13 +205,13 @@ async fn test_applications_operations() {
         list_response
             .applications
             .iter()
-            .any(|a| a.name == "test_app")
+            .any(|a| a.name == application_name)
     );
 
     // Get application
     let get_request = GetApplicationRequest::builder()
         .namespace(project_id.clone())
-        .application("test_app".to_string())
+        .application(application_name.to_string())
         .build()
         .unwrap();
 
@@ -188,12 +220,12 @@ async fn test_applications_operations() {
         .await
         .expect("Get should succeed");
 
-    assert_eq!(get_response.name, "test_app");
+    assert_eq!(get_response.name, application_name);
 
     // Invoke application
     let invoke_request = InvokeApplicationRequest::builder()
         .namespace(project_id.clone())
-        .application("test_app".to_string())
+        .application(application_name.to_string())
         .body(serde_json::json!({"input_text": "hello world"}))
         .build()
         .unwrap();
@@ -222,13 +254,21 @@ async fn test_applications_operations() {
     // List requests
     let list_requests_request = ListRequestsRequest::builder()
         .namespace(project_id)
-        .application("test_app".to_string())
+        .application(application_name.to_string())
         .limit(10)
         .build()
         .unwrap();
 
-    let _requests = apps_client
+    let requests = apps_client
         .list_requests(&list_requests_request)
         .await
         .expect("List requests should succeed");
+
+    assert!(
+        requests
+            .requests
+            .iter()
+            .map(|r| r.id.clone())
+            .any(|r| r == request_id)
+    );
 }

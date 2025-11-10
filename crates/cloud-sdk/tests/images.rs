@@ -6,7 +6,7 @@ mod common;
 async fn test_images_operations() {
     let sdk = common::create_sdk();
 
-    let image = common::build_test_image(&sdk, "test-app", "test_func").await;
+    let image = common::build_test_image(&sdk, "test-app", "1.1.0", "test_func").await;
     assert_eq!(BuildStatus::Succeeded, image.status);
 
     let build_id = image.id.clone();

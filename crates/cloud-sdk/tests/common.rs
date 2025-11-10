@@ -12,6 +12,7 @@ pub fn create_sdk() -> Sdk {
 pub async fn build_test_image(
     sdk: &Sdk,
     application_name: &str,
+    application_version: &str,
     func_name: &str,
 ) -> ImageBuildResult {
     let images_client = sdk.images();
@@ -35,7 +36,7 @@ pub async fn build_test_image(
         .image(image)
         .image_tag("latest".to_string())
         .application_name(application_name.to_string())
-        .application_version("1.0.1".to_string())
+        .application_version(application_version.to_string())
         .function_name(func_name.to_string())
         .sdk_version("0.2.75".to_string())
         .build()

@@ -57,6 +57,10 @@ pub enum SdkError {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
+    /// JSON serialization/deserialization errors
+    #[error(transparent)]
+    JsonWithError(#[from] serde_path_to_error::Error<serde_json::Error>),
+
     /// Errors specific to the Secrets client
     #[error(transparent)]
     Secrets(#[from] SecretsError),

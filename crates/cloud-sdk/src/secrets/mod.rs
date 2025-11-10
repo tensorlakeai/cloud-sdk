@@ -109,7 +109,8 @@ impl SecretsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let response = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let response = serde_path_to_error::deserialize(jd)?;
 
         Ok(response)
     }
@@ -166,7 +167,8 @@ impl SecretsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let list = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let list = serde_path_to_error::deserialize(jd)?;
 
         Ok(list)
     }
@@ -210,7 +212,8 @@ impl SecretsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let secret = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let secret = serde_path_to_error::deserialize(jd)?;
 
         Ok(secret)
     }

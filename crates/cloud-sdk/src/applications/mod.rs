@@ -137,10 +137,8 @@ impl ApplicationsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        println!("!!!!!");
-        let s = str::from_utf8(&bytes).unwrap();
-        println!("{s}");
-        let list = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_slice(bytes.as_ref());
+        let list = serde_path_to_error::deserialize(jd)?;
 
         Ok(list)
     }
@@ -185,7 +183,8 @@ impl ApplicationsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let app = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let app = serde_path_to_error::deserialize(jd)?;
 
         Ok(app)
     }
@@ -336,7 +335,8 @@ impl ApplicationsClient {
             Ok(InvokeResponse::Stream(Box::pin(frame.into_stream())))
         } else {
             let bytes = resp.bytes().await?;
-            let request_id_resp: serde_json::Value = serde_json::from_slice(&bytes)?;
+            let jd = &mut serde_json::Deserializer::from_slice(&bytes);
+            let request_id_resp: serde_json::Value = serde_path_to_error::deserialize(jd)?;
             let request_id =
                 request_id_resp["request_id"]
                     .as_str()
@@ -399,7 +399,8 @@ impl ApplicationsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let list = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let list = serde_path_to_error::deserialize(jd)?;
 
         Ok(list)
     }
@@ -727,7 +728,8 @@ impl ApplicationsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let events_resp = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let events_resp = serde_path_to_error::deserialize(jd)?;
 
         Ok(events_resp)
     }
