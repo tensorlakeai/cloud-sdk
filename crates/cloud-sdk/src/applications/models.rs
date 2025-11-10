@@ -1,4 +1,3 @@
-use arbitrary::Arbitrary;
 use derive_builder::Builder;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -179,12 +178,7 @@ pub struct ApplicationFunction {
     pub placement_constraints: Box<PlacementConstraints>,
     pub resources: Box<FunctionResources>,
     pub retry_policy: Box<NodeRetryPolicy>,
-    #[serde(
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub return_type: Option<Option<serde_json::Value>>,
+    pub return_type: Option<serde_json::Value>,
     pub secret_names: Vec<String>,
     pub timeout_sec: i32,
 }
@@ -203,9 +197,7 @@ pub struct ApplicationsList {
     pub cursor: Option<String>,
 }
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum CursorDirection {
     Forward,
     Backward,
@@ -230,18 +222,17 @@ pub struct DownloadOutput {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EntryPointManifest {
     pub function_name: String,
-    pub name: String,
-    pub version: String,
+    pub input_serializer: String,
+    pub output_serializer: String,
+    pub output_type_hints_base64: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionResources {
-    pub cpu_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gpus: Option<Vec<GpuResources>>,
-    pub memory_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_bytes: Option<i64>,
+    pub cpus: f64,
+    pub gpus: Vec<GpuResources>,
+    pub memory_mb: i64,
+    pub ephemeral_disk_mb: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -255,17 +246,13 @@ pub struct FunctionRun {
     pub status: FunctionRunStatus,
 }
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum FunctionRunOutcome {
     Success,
     Failure,
 }
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum FunctionRunStatus {
     Pending,
     Enqueued,
@@ -276,17 +263,16 @@ pub enum FunctionRunStatus {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpuResources {
-    pub count: i32,
+    pub count: u32,
     pub model: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeRetryPolicy {
-    pub backoff_multiplier: f64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub delay_multiplier: Option<f64>,
     pub max_retries: i32,
-    pub timeout_secs: i64,
+    pub initial_delay_sec: f64,
+    pub max_delay_sec: f64,
+    pub delay_multiplier: f64,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -323,9 +309,7 @@ pub struct RequestError {
     pub message: String,
 }
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Arbitrary,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum RequestFailureReason {
     #[serde(rename = "requesterror")]
     Requesterror,

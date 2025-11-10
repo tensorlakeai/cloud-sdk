@@ -137,6 +137,9 @@ impl ApplicationsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
+        println!("!!!!!");
+        let s = str::from_utf8(&bytes).unwrap();
+        println!("{s}");
         let list = serde_json::from_reader(bytes.as_ref())?;
 
         Ok(list)
