@@ -1,36 +1,50 @@
-use reqwest_vcr::{VCRMiddleware, VCRMode};
-use std::{env, path::PathBuf};
-use tensorlake_cloud_sdk::Sdk;
+use std::env;
+use tensorlake_cloud_sdk::{Sdk, images::models::*};
 
-pub fn create_sdk(module: &str) -> Sdk {
+pub fn create_sdk() -> Sdk {
     let url = env::var("TENSORLAKE_API_URL").expect("TENSORLAKE_API_URL must be set");
     let token = env::var("TENSORLAKE_API_TOKEN").expect("TENSORLAKE_API_TOKEN must be set");
 
-    // Create SDK without middleware
-    let mut sdk = Sdk::new(&url, &token).expect("Failed to create SDK");
-
-    if env::var("TENSORLAKE_VCR_ENABLED").is_ok() {
-        let cassette_path = format!("tests/vcr/{}", module);
-        let middleware = VCRMiddleware::try_from(PathBuf::from(cassette_path))
-            .expect("Failed to create VCR middleware");
-
-        let mode = env::var("TENSORLAKE_VCR_REPLAY")
-            .map(|value| match value.as_str() {
-                "true" => VCRMode::Replay,
-                _ => VCRMode::Record,
-            })
-            .unwrap_or(VCRMode::Record);
-
-        let middleware = middleware.with_mode(mode);
-
-        sdk = sdk
-            .with_middleware(middleware)
-            .expect("Failed to add VCR middleware to SDK");
-    }
-
-    sdk
+    Sdk::new(&url, &token).expect("Failed to create SDK")
 }
 
+#[allow(dead_code)]
+pub async fn build_test_image(
+    sdk: &Sdk,
+    application_name: &str,
+    func_name: &str,
+) -> ImageBuildResult {
+    let images_client = sdk.images();
+
+    // Create an image context
+    let image = Image::builder()
+        .name("test-integration-image".to_string())
+        .base_image("python:3.13".to_string())
+        .build_operations(vec![
+            ImageBuildOperation::builder()
+                .operation_type(ImageBuildOperationType::RUN)
+                .args(vec!["pip install requests".to_string()])
+                .build()
+                .unwrap(),
+        ])
+        .build()
+        .unwrap();
+
+    // Build image
+    let build_request = ImageBuildRequest::builder()
+        .image(image)
+        .image_tag("latest".to_string())
+        .application_name(application_name.to_string())
+        .application_version("1.0.1".to_string())
+        .function_name(func_name.to_string())
+        .sdk_version("0.2.75".to_string())
+        .build()
+        .unwrap();
+
+    images_client.build_image(build_request).await.unwrap()
+}
+
+#[allow(dead_code)]
 pub fn get_org_and_project_ids() -> (String, String) {
     let org_id =
         env::var("TENSORLAKE_ORGANIZATION_ID").expect("TENSORLAKE_ORGANIZATION_ID must be set");

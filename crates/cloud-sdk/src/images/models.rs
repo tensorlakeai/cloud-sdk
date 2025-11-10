@@ -1,6 +1,6 @@
-use arbitrary::Arbitrary;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::{self, Write};
 use url;
@@ -53,7 +53,7 @@ pub struct BuildListResponse {
 }
 
 /// The status of an image build.
-#[derive(Debug, Clone, Serialize, Deserialize, Arbitrary)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildStatus {
     /// The build is pending.
@@ -82,15 +82,11 @@ pub struct CancelBuildResponse {
 /// Request parameters for building an image.
 #[derive(Builder, Clone, Debug)]
 pub struct ImageBuildRequest {
-    /// The name of the image to build.
-    #[builder(setter(into))]
-    pub image_name: String,
+    /// The image definition.
+    pub image: Image,
     /// The tag for the image.
     #[builder(setter(into))]
     pub image_tag: String,
-    /// The build context data as a tar.gz archive.
-    #[builder(setter(into))]
-    pub context_data: Vec<u8>,
     /// The name of the application this image belongs to.
     #[builder(setter(into))]
     pub application_name: String,
@@ -100,6 +96,9 @@ pub struct ImageBuildRequest {
     /// The name of the function in the application.
     #[builder(setter(into))]
     pub function_name: String,
+    /// The SDK version for hashing.
+    #[builder(setter(into))]
+    pub sdk_version: String,
 }
 
 impl ImageBuildRequest {
@@ -182,7 +181,7 @@ pub struct Page<T> {
 }
 
 /// Registry type for the image.
-#[derive(Debug, Clone, Serialize, Deserialize, Arbitrary)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RegistryType {
     /// ECR registry.
     ECR,
@@ -299,6 +298,18 @@ impl Image {
         ImageBuilder::default()
     }
 
+    /// Calculate the hash for this image, matching the Python implementation.
+    pub fn image_hash(&self, sdk_version: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.name.as_bytes());
+        hasher.update(self.base_image.as_bytes());
+        for op in &self.build_operations {
+            add_build_op_to_hasher(op, &mut hasher);
+        }
+        hasher.update(sdk_version.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+
     /// Generate the Dockerfile content for this image.
     pub fn dockerfile_content(&self, sdk_version: &str) -> String {
         let mut lines = vec![
@@ -324,9 +335,10 @@ impl Image {
             match op.operation_type {
                 ImageBuildOperationType::COPY => {
                     if let Some(src) = op.args.first()
-                        && std::path::Path::new(src).exists() {
-                            tar.append_dir_all(src, src)?;
-                        }
+                        && std::path::Path::new(src).exists()
+                    {
+                        tar.append_dir_all(src, src)?;
+                    }
                 }
                 ImageBuildOperationType::ADD => {
                     if let Some(src) = op.args.first() {
@@ -424,4 +436,57 @@ fn is_inside_git_dir(path: &str) -> bool {
     std::path::Path::new(path)
         .components()
         .any(|c| c.as_os_str() == ".git")
+}
+
+fn add_build_op_to_hasher(op: &ImageBuildOperation, hasher: &mut Sha256) {
+    hasher.update(op.operation_type.to_string().as_bytes());
+
+    match op.operation_type {
+        ImageBuildOperationType::RUN
+        | ImageBuildOperationType::ADD
+        | ImageBuildOperationType::ENV => {
+            for arg in &op.args {
+                hasher.update(arg.as_bytes());
+            }
+        }
+        ImageBuildOperationType::COPY => {
+            if let Some(src) = op.args.first() {
+                hash_directory(src, hasher);
+            }
+        }
+    }
+}
+
+fn hash_directory(path: &str, hasher: &mut Sha256) {
+    use std::fs;
+    use std::io::Read;
+
+    fn visit_dir(dir: &std::path::Path, hasher: &mut Sha256) -> io::Result<()> {
+        if dir.is_dir() {
+            let entries = fs::read_dir(dir)?;
+            for entry in entries {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    visit_dir(&path, hasher)?;
+                } else {
+                    let mut file = fs::File::open(&path)?;
+                    let mut buffer = [0u8; 1024];
+                    loop {
+                        let bytes_read = file.read(&mut buffer)?;
+                        if bytes_read == 0 {
+                            break;
+                        }
+                        hasher.update(&buffer[..bytes_read]);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let path = std::path::Path::new(path);
+    if path.exists() {
+        visit_dir(path, hasher).unwrap();
+    }
 }

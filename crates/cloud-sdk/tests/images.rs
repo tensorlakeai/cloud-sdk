@@ -4,46 +4,13 @@ mod common;
 
 #[tokio::test]
 async fn test_images_operations() {
-    let sdk = common::create_sdk("images");
+    let sdk = common::create_sdk();
 
+    let image = common::build_test_image(&sdk, "test-app", "test_func").await;
+    assert_eq!(BuildStatus::Succeeded, image.status);
+
+    let build_id = image.id.clone();
     let images_client = sdk.images();
-
-    // Create an image context
-    let image = Image::builder()
-        .name("test-image".to_string())
-        .base_image("python:3.13".to_string())
-        .build_operations(vec![
-            ImageBuildOperation::builder()
-                .operation_type(ImageBuildOperationType::RUN)
-                .args(vec!["pip install requests".to_string()])
-                .build()
-                .unwrap(),
-        ])
-        .build()
-        .unwrap();
-
-    let mut context_data = Vec::new();
-    image
-        .create_context_archive(&mut context_data, "0.2.75")
-        .unwrap();
-
-    // Build image
-    let build_request = ImageBuildRequest::builder()
-        .image_name("test-image".to_string())
-        .image_tag("latest".to_string())
-        .context_data(context_data)
-        .application_name("test-app-image".to_string())
-        .application_version("1.0.0".to_string())
-        .function_name("test-func".to_string())
-        .build()
-        .unwrap();
-
-    let build_result = images_client
-        .build_image(build_request)
-        .await
-        .expect("Build should succeed");
-
-    let build_id = build_result.id.clone();
 
     // List builds after the build_image operation succeeds
     let list_request = ListBuildsRequest::builder()

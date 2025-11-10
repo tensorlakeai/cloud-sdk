@@ -4,7 +4,7 @@ mod common;
 
 #[tokio::test]
 async fn test_secrets_operations() {
-    let sdk = common::create_sdk("secrets");
+    let sdk = common::create_sdk();
     let (org_id, project_id) = common::get_org_and_project_ids();
 
     let secrets_client = sdk.secrets();

@@ -1,27 +1,26 @@
 [package]
 name = "tensorlake-cloud-sdk"
-version = "0.3.12"
+version = "0.1.0"
 authors = ["support@tensorlake.ai"]
 description = "A Rust SDK for interacting with Tensorlake Cloud APIs."
 license = "Apache-2.0"
 edition = "2024"
 
 [dependencies]
-arbitrary = { version = "1.4.2", features = ["derive"] }
 bytes = { workspace = true }
 derive_builder = { workspace = true }
-flate2 = "1.0"
+flate2 = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 pin-project-lite = { workspace = true }
 reqwest = { workspace = true }
-reqwest-middleware = { version = "0.4.2", features = ["json", "multipart"] }
+reqwest-middleware = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_repr = { workspace = true }
 serde_with = { workspace = true }
 sha2 = { workspace = true }
-tar = "0.4"
+tar = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -31,10 +30,6 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 data-encoding = "2.5"
-flate2 = "1.0"
-needs_env_var = "1.1"
-reqwest-vcr = "0.3.0"
-tar = "0.4"
 zip = "0.6"
 
 [lints.clippy]
