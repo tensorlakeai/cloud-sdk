@@ -138,35 +138,35 @@ impl Client {
 
         match status {
             StatusCode::UNAUTHORIZED => {
-                let message = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Unauthorized".to_string());
+                let message = body_message_or_default(response, "Unauthorized").await;
                 Err(SdkError::Authentication(message))
             }
             StatusCode::FORBIDDEN => {
-                let message = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Forbidden".to_string());
+                let message = body_message_or_default(response, "Forbidden").await;
                 Err(SdkError::Authorization(message))
             }
             status if status.is_server_error() => {
-                let message = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Server error".to_string());
+                let message = body_message_or_default(response, "Server error").await;
                 Err(SdkError::ServerError { status, message })
             }
             status if !status.is_success() => {
-                let message = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Request failed".to_string());
+                let message = body_message_or_default(response, "Request failed").await;
                 Err(SdkError::ServerError { status, message })
             }
             _ => Ok(response),
         }
+    }
+}
+
+async fn body_message_or_default(response: Response, default: &str) -> String {
+    let message = response
+        .text()
+        .await
+        .unwrap_or_else(|_| default.to_string());
+    if message.is_empty() {
+        default.to_string()
+    } else {
+        message
     }
 }
 
