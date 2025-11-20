@@ -35,7 +35,7 @@ async fn test_secrets_operations() {
     let list_request = ListSecretsRequest::builder()
         .organization_id(&org_id)
         .project_id(&project_id)
-        .page_size(10)
+        .page_size(100)
         .build()
         .unwrap();
 
