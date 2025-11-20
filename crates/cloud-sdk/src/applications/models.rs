@@ -12,9 +12,9 @@ use crate::error::SdkError;
 pub struct ApplicationManifest {
     #[builder(setter(into))]
     pub name: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub description: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub tags: HashMap<String, String>,
     #[builder(setter(into))]
     pub version: String,
@@ -50,21 +50,27 @@ impl Entrypoint {
 pub struct FunctionManifest {
     #[builder(setter(into))]
     pub name: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub description: String,
+    #[builder(default)]
     pub is_api: bool,
     #[builder(setter(into, strip_option), default)]
     pub secret_names: Vec<String>,
+    #[builder(default)]
     pub initialization_timeout_sec: i32,
+    #[builder(default)]
     pub timeout_sec: i32,
     pub resources: Resources,
+    #[builder(default)]
     pub retry_policy: RetryPolicy,
     #[builder(setter(into, strip_option), default)]
     pub cache_key: Option<String>,
     #[builder(setter(into), default)]
     pub parameters: Vec<Parameter>,
     pub return_type: serde_json::Value,
+    #[builder(default)]
     pub placement_constraints: PlacementConstraintsManifest,
+    #[builder(default)]
     pub max_concurrency: i32,
 }
 
