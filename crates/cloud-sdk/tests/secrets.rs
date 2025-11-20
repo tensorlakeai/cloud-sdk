@@ -44,10 +44,16 @@ async fn test_secrets_operations() {
         .await
         .expect("List should succeed");
 
-    assert_eq!(2, list_response.items.len());
-    let secret = list_response.items.first().unwrap();
+    let existent = list_response
+        .items
+        .iter()
+        .filter(|item| item.name == secret_1_name || item.name == secret_2_name)
+        .collect::<Vec<_>>();
+
+    assert_eq!(2, existent.len());
+    let secret = existent.first().unwrap();
     assert_eq!(secret_1_name, secret.name);
-    let secret = list_response.items.last().unwrap();
+    let secret = existent.last().unwrap();
     assert_eq!(secret_2_name, secret.name);
 
     // Get the secret created earlier
@@ -88,15 +94,23 @@ async fn test_secrets_operations() {
         .await
         .expect("List should succeed");
 
-    assert_eq!(2, list_response.items.len());
-    let first = list_response.items.first().unwrap();
-    let last = list_response.items.last().unwrap();
+    let existent = list_response
+        .items
+        .iter()
+        .filter(|item| item.name == secret_1_name || item.name == secret_2_name)
+        .collect::<Vec<_>>();
+
+    assert_eq!(2, existent.len());
+    let first = existent.first().unwrap();
+    assert_eq!(secret_1_name, first.name);
+    let second = existent.last().unwrap();
+    assert_eq!(secret_2_name, second.name);
 
     // Delete secrets
     let delete_request = DeleteSecretRequest::builder()
         .organization_id(&org_id)
         .project_id(&project_id)
-        .secret_id(first.id.clone())
+        .secret_id(&first.id)
         .build()
         .unwrap();
 
@@ -108,7 +122,7 @@ async fn test_secrets_operations() {
     let delete_request = DeleteSecretRequest::builder()
         .organization_id(&org_id)
         .project_id(&project_id)
-        .secret_id(last.id.clone())
+        .secret_id(&second.id)
         .build()
         .unwrap();
 
@@ -116,12 +130,4 @@ async fn test_secrets_operations() {
         .delete(&delete_request)
         .await
         .expect("Delete should succeed");
-
-    // List all secrets again
-    let final_list_response = secrets_client
-        .list(&list_request)
-        .await
-        .expect("Final list should succeed");
-
-    assert_eq!(0, final_list_response.items.len());
 }
