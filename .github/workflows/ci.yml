@@ -1,4 +1,4 @@
-name: Lints and Unit tests
+name: Tests
 
 on:
   push:

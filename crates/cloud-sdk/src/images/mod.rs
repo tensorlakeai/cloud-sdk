@@ -15,7 +15,7 @@
 //! let image = Image::builder()
 //!     .name("my-app")
 //!     .base_image("python:3.9")
-//!     .build()?;
+//!     .build().unwrap();
 //!
 //! // Build the image
 //! let build_request = ImageBuildRequest::builder()
@@ -25,7 +25,7 @@
 //!     .application_version("1.0.0")
 //!     .function_name("main")
 //!     .sdk_version("0.3.12")
-//!     .build()?;
+//!     .build().unwrap();
 //!
 //! images_client.build_image(build_request);
 //! ```
@@ -93,18 +93,24 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust
-    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::ImageBuildRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::{ImageBuildRequest, Image}}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
+    ///
+    ///     // Define an image
+    ///     let image = Image::builder()
+    ///         .name("my-app")
+    ///         .base_image("python:3.9")
+    ///         .build()?;
     ///     let request = ImageBuildRequest::builder()
-    ///         .image_name("my-image")
+    ///         .image(image)
     ///         .image_tag("v1.0")
-    ///         .context_data(vec![/* context tar.gz data */])
     ///         .application_name("my-app")
     ///         .application_version("1.0.0")
     ///         .function_name("main")
+    ///         .sdk_version("0.2.75")
     ///         .build()?;
     ///
     ///     images_client.build_image(request).await?;

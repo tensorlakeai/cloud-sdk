@@ -272,7 +272,7 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, InvokeResponse, models::InvokeApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{InvokeApplicationRequest, InvokeResponse}}};
     /// use serde_json;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {

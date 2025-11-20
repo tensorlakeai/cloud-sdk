@@ -4,9 +4,9 @@ use tensorlake_cloud_sdk::{Sdk, images::models::*};
 
 pub fn create_sdk() -> Sdk {
     let url = env::var("TENSORLAKE_API_URL").expect("TENSORLAKE_API_URL must be set");
-    let token = env::var("TENSORLAKE_API_TOKEN").expect("TENSORLAKE_API_TOKEN must be set");
+    let api_key = env::var("TENSORLAKE_API_KEY").expect("TENSORLAKE_API_TOKEN must be set");
 
-    Sdk::new(&url, &token).expect("Failed to create SDK")
+    Sdk::new(&url, &api_key).expect("Failed to create SDK")
 }
 
 #[allow(dead_code)]
@@ -35,11 +35,11 @@ pub async fn build_test_image(
     // Build image
     let build_request = ImageBuildRequest::builder()
         .image(image)
-        .image_tag("latest".to_string())
-        .application_name(application_name.to_string())
-        .application_version(application_version.to_string())
-        .function_name(func_name.to_string())
-        .sdk_version("0.2.75".to_string())
+        .image_tag(random_string())
+        .application_name(application_name)
+        .application_version(application_version)
+        .function_name(func_name)
+        .sdk_version("0.2.75")
         .build()
         .unwrap();
 
