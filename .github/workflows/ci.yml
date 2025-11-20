@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  TENSORLAKE_ORGANIZATION_ID: ${{ vars.TENSORLAKE_ORGANIZATION_ID }}
+  TENSORLAKE_PROJECT_ID: ${{ vars.TENSORLAKE_PROJECT_ID }}
+  TENSORLAKE_API_KEY: ${{ secrets.TENSORLAKE_API_KEY }}
+  TENSORLAKE_API_URL: ${{ vars.TENSORLAKE_API_URL }}
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest

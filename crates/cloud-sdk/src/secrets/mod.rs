@@ -15,7 +15,7 @@
 //!     let create_req = UpsertSecretRequest::builder()
 //!         .organization_id("org-id")
 //!         .project_id("project-id")
-//!         .secret(("my-secret", "secret-value"))
+//!         .secrets(("my-secret", "secret-value"))
 //!         .build()?;
 //!     secrets_client.upsert(create_req).await?;
 //!
@@ -87,7 +87,7 @@ impl SecretsClient {
     ///     let req = UpsertSecretRequest::builder()
     ///         .organization_id("org-123")
     ///         .project_id("proj-456")
-    ///         .secret(("api-key", "secret123"))
+    ///         .secrets(("api-key", "secret123"))
     ///         .build()?;
     ///     secrets_client.upsert(req).await?;
     ///     Ok(())
