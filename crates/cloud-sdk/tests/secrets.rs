@@ -1,21 +1,27 @@
 use tensorlake_cloud_sdk::secrets::models::*;
 
+use crate::common::random_string;
+
 mod common;
 
 #[tokio::test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 async fn test_secrets_operations() {
     let sdk = common::create_sdk();
     let (org_id, project_id) = common::get_org_and_project_ids();
 
     let secrets_client = sdk.secrets();
 
+    let secret_1_name = format!("integration_test_secret_1_{}", random_string());
+    let secret_2_name = format!("integration_test_secret_2_{}", random_string());
+
     // Create a new secret
     let upsert_request = UpsertSecretRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .secrets(vec![
-            ("test_secret_1", "initial_value"),
-            ("test_secret_2", "initial_value"),
+            (secret_1_name.as_str(), "initial_value"),
+            (secret_2_name.as_str(), "initial_value"),
         ])
         .build()
         .unwrap();
@@ -27,8 +33,8 @@ async fn test_secrets_operations() {
 
     // List all secrets
     let list_request = ListSecretsRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .page_size(10)
         .build()
         .unwrap();
@@ -40,14 +46,14 @@ async fn test_secrets_operations() {
 
     assert_eq!(2, list_response.items.len());
     let secret = list_response.items.first().unwrap();
-    assert_eq!("test_secret_1", secret.name);
+    assert_eq!(secret_1_name, secret.name);
     let secret = list_response.items.last().unwrap();
-    assert_eq!("test_secret_2", secret.name);
+    assert_eq!(secret_2_name, secret.name);
 
     // Get the secret created earlier
     let get_request = GetSecretRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .secret_id(secret.id.clone())
         .build()
         .unwrap();
@@ -63,11 +69,11 @@ async fn test_secrets_operations() {
 
     // Update the secret
     let update_request = UpsertSecretRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .secrets(vec![
-            ("test_secret_1", "updated_value"),
-            ("test_secret_2", "updated_value"),
+            (secret_1_name.as_str(), "updated_value"),
+            (secret_2_name.as_str(), "updated_value"),
         ])
         .build()
         .unwrap();
@@ -88,8 +94,8 @@ async fn test_secrets_operations() {
 
     // Delete secrets
     let delete_request = DeleteSecretRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .secret_id(first.id.clone())
         .build()
         .unwrap();
@@ -100,8 +106,8 @@ async fn test_secrets_operations() {
         .expect("Delete should succeed");
 
     let delete_request = DeleteSecretRequest::builder()
-        .organization_id(org_id.clone())
-        .project_id(project_id.clone())
+        .organization_id(&org_id)
+        .project_id(&project_id)
         .secret_id(last.id.clone())
         .build()
         .unwrap();

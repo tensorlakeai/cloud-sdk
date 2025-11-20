@@ -38,7 +38,6 @@ use models::*;
 use reqwest::Method;
 
 /// A client for managing secrets in Tensorlake Cloud.
-#[derive(Debug)]
 pub struct SecretsClient {
     client: Client,
 }

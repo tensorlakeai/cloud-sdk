@@ -92,7 +92,6 @@ pub use client::*;
 /// let apps_client = sdk.applications();
 /// let secrets_client = sdk.secrets();
 /// ```
-#[derive(Debug)]
 pub struct Sdk {
     client: Client,
 }

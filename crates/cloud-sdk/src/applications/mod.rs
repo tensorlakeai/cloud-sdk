@@ -40,28 +40,15 @@ use reqwest::{
 use std::io::Error;
 use tokio_util::{codec::FramedRead, io::StreamReader};
 
-use crate::{client::Client, error::SdkError, event_source::SseDecoder};
-
-/// Response from invoking an application
-pub enum InvokeResponse {
-    /// The request ID of the invocation
-    RequestId(String),
-    /// A stream of progress events
-    Stream(
-        std::pin::Pin<
-            Box<
-                dyn futures::Stream<Item = Result<models::RequestStateChangeEvent, SdkError>>
-                    + Send,
-            >,
-        >,
-    ),
-}
+use crate::{
+    applications::models::ProgressUpdatesRequest, client::Client, error::SdkError,
+    event_source::SseDecoder,
+};
 
 /// A client for interacting with Tensorlake Cloud applications.
 ///
 /// This client provides high-level methods for managing applications, requests, and related operations.
 /// It wraps the raw API calls with a more ergonomic interface.
-#[derive(Debug)]
 pub struct ApplicationsClient {
     client: Client,
 }
@@ -308,7 +295,7 @@ impl ApplicationsClient {
     pub async fn invoke(
         &self,
         request: &models::InvokeApplicationRequest,
-    ) -> Result<InvokeResponse, SdkError> {
+    ) -> Result<models::InvokeResponse, SdkError> {
         let uri_str = format!(
             "/v1/namespaces/{}/applications/{}",
             request.namespace, request.application
@@ -332,7 +319,9 @@ impl ApplicationsClient {
             let decoder: SseDecoder<models::RequestStateChangeEvent> = SseDecoder::new();
             let stream = resp.bytes_stream();
             let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
-            Ok(InvokeResponse::Stream(Box::pin(frame.into_stream())))
+            Ok(models::InvokeResponse::Stream(Box::pin(
+                frame.into_stream(),
+            )))
         } else {
             let bytes = resp.bytes().await?;
             let jd = &mut serde_json::Deserializer::from_slice(&bytes);
@@ -344,7 +333,7 @@ impl ApplicationsClient {
                         status: reqwest::StatusCode::OK,
                         message: "Missing request_id in response".to_string(),
                     })?;
-            Ok(InvokeResponse::RequestId(request_id.to_string()))
+            Ok(models::InvokeResponse::RequestId(request_id.to_string()))
         }
     }
 
@@ -732,5 +721,91 @@ impl ApplicationsClient {
         let events_resp = serde_path_to_error::deserialize(jd)?;
 
         Ok(events_resp)
+    }
+
+    pub async fn get_progress_updates(
+        &self,
+        request: &models::ProgressUpdatesRequest,
+    ) -> Result<models::ProgressUpdatesResponse, SdkError> {
+        let req = self.build_progress_update_request(request)?;
+        let resp = self.client.execute(req).await?;
+
+        match request.mode {
+            models::ProgressUpdatesRequestMode::Stream => {
+                let decoder: SseDecoder<models::RequestStateChangeEvent> = SseDecoder::new();
+                let stream = resp.bytes_stream();
+                let frame =
+                    FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
+                Ok(models::ProgressUpdatesResponse::Stream(Box::pin(
+                    frame.into_stream(),
+                )))
+            }
+            models::ProgressUpdatesRequestMode::Paginated(_) => {
+                let bytes = resp.bytes().await?;
+                let jd = &mut serde_json::Deserializer::from_slice(&bytes);
+                let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
+                Ok(models::ProgressUpdatesResponse::Updates(response))
+            }
+            models::ProgressUpdatesRequestMode::FetchAll => {
+                let bytes = resp.bytes().await?;
+                let jd = &mut serde_json::Deserializer::from_slice(&bytes);
+                let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
+                if response.next_token.is_none() {
+                    return Ok(models::ProgressUpdatesResponse::Updates(response));
+                }
+
+                let mut all_updates = response.updates;
+                let mut request = request.clone();
+                request.mode = models::ProgressUpdatesRequestMode::Paginated(response.next_token);
+
+                loop {
+                    let req = self.build_progress_update_request(&request)?;
+                    let resp = self.client.execute(req).await?;
+                    let bytes = resp.bytes().await?;
+                    let jd = &mut serde_json::Deserializer::from_slice(&bytes);
+                    let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
+                    all_updates.extend(response.updates);
+                    if response.next_token.is_none() {
+                        break;
+                    }
+                    request.mode =
+                        models::ProgressUpdatesRequestMode::Paginated(response.next_token);
+                }
+
+                Ok(models::ProgressUpdatesResponse::Updates(
+                    models::ProgressUpdates {
+                        updates: all_updates,
+                        next_token: None,
+                    },
+                ))
+            }
+        }
+    }
+
+    fn build_progress_update_request(
+        &self,
+        request: &ProgressUpdatesRequest,
+    ) -> Result<reqwest::Request, reqwest::Error> {
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}/requests/{}/updates",
+            request.namespace, request.application, request.request_id
+        );
+        let req_builder = self.client.base_request(Method::POST, &uri_str);
+
+        match &request.mode {
+            models::ProgressUpdatesRequestMode::Paginated(None) => {
+                req_builder.header(ACCEPT, "application/json").build()
+            }
+            models::ProgressUpdatesRequestMode::Paginated(Some(token)) => req_builder
+                .header(ACCEPT, "application/json")
+                .query(&[("next_token", token)])
+                .build(),
+            models::ProgressUpdatesRequestMode::FetchAll => {
+                req_builder.header(ACCEPT, "application/json").build()
+            }
+            models::ProgressUpdatesRequestMode::Stream => {
+                req_builder.header(ACCEPT, "text/event-stream").build()
+            }
+        }
     }
 }

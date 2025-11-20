@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::env;
 use tensorlake_cloud_sdk::{Sdk, images::models::*};
 
@@ -52,4 +53,17 @@ pub fn get_org_and_project_ids() -> (String, String) {
     let project_id = env::var("TENSORLAKE_PROJECT_ID").expect("TENSORLAKE_PROJECT_ID must be set");
 
     (org_id, project_id)
+}
+
+pub fn random_string() -> String {
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+    let mut rng = rand::rng();
+    let length = rng.random_range(5..=10);
+
+    (0..length)
+        .map(|_| {
+            let idx = rng.random_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
 }

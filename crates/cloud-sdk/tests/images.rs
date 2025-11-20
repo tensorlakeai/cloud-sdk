@@ -1,12 +1,19 @@
 use tensorlake_cloud_sdk::images::models::*;
 
+use crate::common::random_string;
+
 mod common;
 
 #[tokio::test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 async fn test_images_operations() {
     let sdk = common::create_sdk();
 
-    let image = common::build_test_image(&sdk, "test-app", "1.1.0", "test_func").await;
+    let application_name = format!("integration_test_app_{}", random_string());
+    let application_version = random_string();
+
+    let image =
+        common::build_test_image(&sdk, &application_name, &application_version, "test_func").await;
     assert_eq!(BuildStatus::Succeeded, image.status);
 
     let build_id = image.id.clone();

@@ -2,6 +2,8 @@ use data_encoding::BASE64;
 use std::{collections::HashMap, io::Write};
 use tensorlake_cloud_sdk::{applications::models::*, images::models::BuildStatus};
 
+use crate::common::random_string;
+
 mod common;
 
 const APP_CODE: &str = r#"
@@ -19,30 +21,28 @@ def helper_func(value: str) -> str:
 "#;
 
 #[tokio::test]
+#[cfg_attr(not(feature = "integration-tests"), ignore)]
 async fn test_applications_operations() {
     let sdk = common::create_sdk();
 
-    let application_name = "integration_test_app";
-    let application_version = "1.0.10";
+    let application_name = format!("integration_test_app_{}", random_string());
+    let application_version = random_string();
     let function_entrypoint = "simple_test_func";
-    let data_type_value = serde_json::json!({"type": "string"});
-    let data_type = DataType::builder()
-        .r#type("string".to_string())
-        .build()
-        .unwrap();
+    let data_type = DataType::builder().typ("string").build().unwrap();
 
     // Build test images
     let image = common::build_test_image(
         &sdk,
-        application_name,
-        application_version,
+        &application_name,
+        &application_version,
         function_entrypoint,
     )
     .await;
     assert_eq!(BuildStatus::Succeeded, image.status);
 
     let image =
-        common::build_test_image(&sdk, application_name, application_version, "helper_func").await;
+        common::build_test_image(&sdk, &application_name, &application_version, "helper_func")
+            .await;
     assert_eq!(BuildStatus::Succeeded, image.status);
 
     let (_org_id, project_id) = common::get_org_and_project_ids();
@@ -78,12 +78,15 @@ async fn test_applications_operations() {
         zip_writer.finish().unwrap();
     }
 
+    let return_type = data_type.to_json_value().unwrap();
+    let output_hint = BASE64.encode(data_type.to_json_string().unwrap().as_bytes());
+
     // Build application manifest
     let mut functions = HashMap::new();
 
     let function_manifest = FunctionManifest::builder()
-        .name("simple_test_func".to_string())
-        .description("A simple test function".to_string())
+        .name("simple_test_func")
+        .description("A simple test function")
         .is_api(true)
         .initialization_timeout_sec(300)
         .timeout_sec(300)
@@ -106,20 +109,19 @@ async fn test_applications_operations() {
         )
         .parameters(vec![
             Parameter::builder()
-                .name("input_text".to_string())
+                .name("input_text")
                 .data_type(data_type.clone())
                 .build()
                 .unwrap(),
         ])
-        .return_type(data_type_value.clone())
+        .return_type(return_type.clone())
         .placement_constraints(PlacementConstraintsManifest::builder().build().unwrap())
         .max_concurrency(1)
         .build()
         .unwrap();
 
     let helper_function_manifest = FunctionManifest::builder()
-        .name("helper_func".to_string())
-        .description("".to_string())
+        .name("helper_func")
         .is_api(false)
         .initialization_timeout_sec(300)
         .timeout_sec(300)
@@ -142,12 +144,12 @@ async fn test_applications_operations() {
         )
         .parameters(vec![
             Parameter::builder()
-                .name("value".to_string())
-                .data_type(data_type.clone())
+                .name("value")
+                .data_type(data_type)
                 .build()
                 .unwrap(),
         ])
-        .return_type(data_type_value.clone())
+        .return_type(return_type)
         .placement_constraints(PlacementConstraintsManifest::builder().build().unwrap())
         .max_concurrency(1)
         .build()
@@ -156,20 +158,18 @@ async fn test_applications_operations() {
     functions.insert("simple_test_func".to_string(), function_manifest);
     functions.insert("helper_func".to_string(), helper_function_manifest);
 
-    let data_type_string = serde_json::to_string(&data_type_value).unwrap();
-
     let app_manifest = ApplicationManifest::builder()
-        .name(application_name.to_string())
-        .description("Test application".to_string())
+        .name(&application_name)
+        .description("Test application")
         .tags(HashMap::new())
-        .version(application_version.to_string())
+        .version(application_version)
         .functions(functions)
         .entrypoint(
             Entrypoint::builder()
-                .function_name(function_entrypoint.to_string())
-                .input_serializer("json".to_string())
-                .output_serializer("json".to_string())
-                .output_type_hints_base64(BASE64.encode(data_type_string.as_bytes()))
+                .function_name(function_entrypoint)
+                .input_serializer("json")
+                .output_serializer("json")
+                .output_type_hints_base64(output_hint)
                 .build()
                 .unwrap(),
         )
@@ -236,7 +236,7 @@ async fn test_applications_operations() {
         .expect("Invoke should succeed");
 
     let request_id = match invoke_response {
-        tensorlake_cloud_sdk::applications::InvokeResponse::RequestId(id) => id,
+        InvokeResponse::RequestId(id) => id,
         _ => panic!("Expected RequestId"),
     };
 

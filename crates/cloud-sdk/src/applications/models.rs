@@ -1,9 +1,12 @@
 use derive_builder::Builder;
+use futures::Stream;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
+use std::{collections::HashMap, pin::Pin};
 use uuid::Uuid;
+
+use crate::error::SdkError;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct ApplicationManifest {
@@ -115,8 +118,8 @@ impl PlacementConstraintsManifest {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct DataType {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    #[builder(setter(into), default)]
-    pub r#type: Option<String>,
+    #[builder(setter(into, strip_option), default)]
+    pub typ: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(setter(into, strip_option), default)]
     pub items: Option<Box<DataType>>,
@@ -140,6 +143,14 @@ pub struct DataType {
 impl DataType {
     pub fn builder() -> DataTypeBuilder {
         DataTypeBuilder::default()
+    }
+
+    pub fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
+    }
+
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
     }
 }
 
@@ -346,22 +357,36 @@ pub struct RequestError {
     pub message: String,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RequestFailureReason {
-    #[serde(rename = "requesterror")]
-    Requesterror,
+    #[serde(alias = "unknown")]
+    Unknown,
+    #[serde(alias = "internalerror", alias = "internal_error")]
+    InternalError,
+    #[serde(alias = "functionerror", alias = "function_error")]
+    FunctionError,
+    #[serde(alias = "requesterror", alias = "request_error")]
+    RequestError,
+    #[serde(alias = "nextfunctionnotfound", alias = "next_function_not_found")]
+    NextFunctionNotFound,
+    #[serde(alias = "constraintunsatisfiable", alias = "constraint_unsatisfiable")]
+    ConstraintUnsatisfiable,
+    #[serde(alias = "functiontimeout", alias = "function_timeout")]
+    FunctionTimeout,
+    #[serde(alias = "cancelled")]
+    Cancelled,
+    #[serde(alias = "outofmemory", alias = "out_of_memory")]
+    OutOfMemory,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[serde(rename_all = "lowercase")]
 pub enum RequestOutcome {
-    Success(serde_json::Value),
-    Failure(RequestOutcomeOneOf),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct RequestOutcomeOneOf {
-    pub failure: RequestFailureReason,
+    #[default]
+    Unknown,
+    Success,
+    Failure(RequestFailureReason),
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -392,7 +417,7 @@ pub struct EventsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
     FunctionRunCreated(FunctionRunCreated),
@@ -400,7 +425,21 @@ pub enum RequestStateChangeEvent {
     FunctionRunCompleted(FunctionRunCompleted),
     FunctionRunMatchedCache(FunctionRunMatchedCache),
     RequestCreated(RequestCreatedEvent),
+    RequestProgressUpdated(RequestProgressUpdated),
     RequestFinished(RequestFinishedEvent),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestProgressUpdated {
+    pub request_id: String,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub step: Option<usize>,
+    #[serde(default)]
+    pub total: Option<usize>,
+    #[serde(default)]
+    pub attributes: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -411,6 +450,8 @@ pub struct RequestCreatedEvent {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestFinishedEvent {
     pub request_id: String,
+    #[serde(default)]
+    pub outcome: RequestOutcome,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -585,6 +626,14 @@ impl InvokeApplicationRequest {
     }
 }
 
+/// Response from invoking an application
+pub enum InvokeResponse {
+    /// The request ID of the invocation
+    RequestId(String),
+    /// A stream of progress events
+    Stream(Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>),
+}
+
 #[derive(Builder, Debug)]
 pub struct ListApplicationsRequest {
     #[builder(setter(into))]
@@ -682,4 +731,41 @@ impl GetLogsRequest {
     pub fn builder() -> GetLogsRequestBuilder {
         GetLogsRequestBuilder::default()
     }
+}
+
+#[derive(Builder, Clone, Debug)]
+pub struct ProgressUpdatesRequest {
+    #[builder(setter(into))]
+    pub namespace: String,
+    #[builder(setter(into))]
+    pub application: String,
+    #[builder(setter(into))]
+    pub request_id: String,
+    pub mode: ProgressUpdatesRequestMode,
+}
+
+#[derive(Clone, Debug)]
+pub enum ProgressUpdatesRequestMode {
+    Paginated(Option<String>),
+    FetchAll,
+    Stream,
+}
+
+impl ProgressUpdatesRequest {
+    pub fn builder() -> ProgressUpdatesRequestBuilder {
+        ProgressUpdatesRequestBuilder::default()
+    }
+}
+
+pub enum ProgressUpdatesResponse {
+    /// A JSON object containing progress updates
+    Updates(ProgressUpdates),
+    /// A stream of progress events
+    Stream(Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ProgressUpdates {
+    pub updates: Vec<RequestStateChangeEvent>,
+    pub next_token: Option<String>,
 }

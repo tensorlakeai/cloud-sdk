@@ -1,46 +1,84 @@
 //! HTTP client that interacts with the Tensorlake Cloud API.
 use reqwest::{
     Request, Response, StatusCode,
-    header::{HeaderMap, InvalidHeaderValue},
+    header::{HeaderMap, HeaderValue, InvalidHeaderValue},
 };
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware};
-use std::result::Result;
+use std::{result::Result, sync::Arc};
 
 use crate::error::SdkError;
 
 /// HTTP client that interacts with the Tensorlake Cloud API.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Client {
     base_url: String,
-    bearer_token: String,
+    default_headers: HeaderMap,
+    middlewares: Vec<Arc<dyn Middleware + 'static>>,
     client: ClientWithMiddleware,
 }
 
 impl Client {
-    /// Create a new SDK client without any middleware.
+    /// Create a new SDK client without any middleware or scopes.
     pub fn new(base_url: &str, bearer_token: &str) -> Result<Self, SdkError> {
-        let base_client = new_base_client(bearer_token)?;
+        let default_headers = new_default_headers(bearer_token)?;
+        let base_client = new_base_client(&default_headers)?;
+
         let client = ClientBuilder::new(base_client).build();
 
         Ok(Self {
             base_url: base_url.to_string(),
-            bearer_token: bearer_token.to_string(),
+            middlewares: Vec::new(),
+            default_headers,
             client,
         })
     }
 
     /// Create a new client with additional middleware.
     ///
-    /// This allows users to inject custom middleware such as VCR recording/playback
+    /// This allows you to inject custom middleware such as VCR recording/playback
     /// or other request/response interceptors.
     pub fn with_middleware<M>(self, middleware: M) -> Result<Self, SdkError>
     where
         M: Middleware + 'static,
     {
-        let base_client = new_base_client(&self.bearer_token)?;
-        let client = ClientBuilder::new(base_client).with(middleware).build();
+        let mut middlewares = self.middlewares.clone();
+        middlewares.push(Arc::new(middleware));
 
-        Ok(Self { client, ..self })
+        let base_client = new_base_client(&self.default_headers)?;
+        let mut builder = ClientBuilder::new(base_client);
+        for middleware in &self.middlewares {
+            builder = builder.with_arc(middleware.clone());
+        }
+
+        Ok(Self {
+            client: builder.build(),
+            middlewares,
+            ..self
+        })
+    }
+
+    /// Create a new client with an organization and project scope.
+    ///
+    /// This allows you to explicitly set the organization and project IDs for the client.
+    pub fn with_scope(self, organization_id: &str, project_id: &str) -> Result<Self, SdkError> {
+        let mut default_headers = self.default_headers.clone();
+        default_headers.insert(
+            "X-Tensorlake-Organization-Id",
+            str_to_header_value(organization_id)?,
+        );
+        default_headers.insert("X-Tensorlake-Project-Id", str_to_header_value(project_id)?);
+
+        let base_client = new_base_client(&default_headers)?;
+        let mut builder = ClientBuilder::new(base_client);
+        for middleware in &self.middlewares {
+            builder = builder.with_arc(middleware.clone());
+        }
+
+        Ok(Self {
+            client: builder.build(),
+            default_headers,
+            ..self
+        })
     }
 
     /// Execute an HTTP request.
@@ -63,11 +101,11 @@ impl Client {
         path: &str,
         form: reqwest::multipart::Form,
     ) -> Result<reqwest::Request, SdkError> {
-        Ok(self
-            .client
+        self.client
             .request(method, self.base_url.clone() + path)
             .multipart(form)
-            .build()?)
+            .build()
+            .map_err(Into::into)
     }
 
     pub fn build_json_request(
@@ -132,21 +170,28 @@ impl Client {
     }
 }
 
-fn new_base_client(bearer_token: &str) -> Result<reqwest::Client, SdkError> {
+fn new_default_headers(bearer_token: &str) -> Result<HeaderMap, SdkError> {
     let mut headers = HeaderMap::new();
     headers.insert(
         "Authorization",
-        format!("Bearer {}", bearer_token)
-            .parse()
-            .map_err(|e: InvalidHeaderValue| SdkError::InvalidHeaderValue(e.to_string()))?,
+        str_to_header_value(&format!("Bearer {}", bearer_token))?,
     );
+    Ok(headers)
+}
 
+fn str_to_header_value(value: &str) -> Result<HeaderValue, SdkError> {
+    value
+        .parse()
+        .map_err(|e: InvalidHeaderValue| SdkError::InvalidHeaderValue(e.to_string()))
+}
+
+fn new_base_client(headers: &HeaderMap) -> Result<reqwest::Client, SdkError> {
     let client = reqwest::Client::builder()
         .user_agent(format!(
             "Tensorlake Cloud SDK/{}",
             env!("CARGO_PKG_VERSION")
         ))
-        .default_headers(headers)
+        .default_headers(headers.clone())
         .build()?;
     Ok(client)
 }
