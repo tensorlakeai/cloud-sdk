@@ -1,12 +1,18 @@
-name: CI
+name: Tests
 
 on:
   push:
     branches: [main]
   pull_request:
 
+env:
+  TENSORLAKE_ORGANIZATION_ID: ${{ vars.TENSORLAKE_ORGANIZATION_ID }}
+  TENSORLAKE_PROJECT_ID: ${{ vars.TENSORLAKE_PROJECT_ID }}
+  TENSORLAKE_API_KEY: ${{ secrets.TENSORLAKE_API_KEY }}
+  TENSORLAKE_API_URL: ${{ vars.TENSORLAKE_API_URL }}
+
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,3 +27,12 @@ jobs:
         run: cargo fmt --check
       - name: Run clippy
         run: cargo clippy -- -D warnings
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run integrationtests
+        run: cargo test --features integration-tests --verbose

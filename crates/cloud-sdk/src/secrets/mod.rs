@@ -15,7 +15,7 @@
 //!     let create_req = UpsertSecretRequest::builder()
 //!         .organization_id("org-id")
 //!         .project_id("project-id")
-//!         .secret(("my-secret", "secret-value"))
+//!         .secrets(("my-secret", "secret-value"))
 //!         .build()?;
 //!     secrets_client.upsert(create_req).await?;
 //!
@@ -38,7 +38,6 @@ use models::*;
 use reqwest::Method;
 
 /// A client for managing secrets in Tensorlake Cloud.
-#[derive(Debug)]
 pub struct SecretsClient {
     client: Client,
 }
@@ -88,7 +87,7 @@ impl SecretsClient {
     ///     let req = UpsertSecretRequest::builder()
     ///         .organization_id("org-123")
     ///         .project_id("proj-456")
-    ///         .secret(("api-key", "secret123"))
+    ///         .secrets(("api-key", "secret123"))
     ///         .build()?;
     ///     secrets_client.upsert(req).await?;
     ///     Ok(())
@@ -103,16 +102,14 @@ impl SecretsClient {
             request.organization_id, request.project_id
         );
 
-        let req_builder = self
+        let req = self
             .client
-            .request(Method::PUT, &uri_str)
-            .json(&request.secret);
-
-        let req = req_builder.build()?;
+            .build_json_request(Method::PUT, &uri_str, &request.secrets)?;
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let response = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let response = serde_path_to_error::deserialize(jd)?;
 
         Ok(response)
     }
@@ -169,7 +166,8 @@ impl SecretsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let list = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let list = serde_path_to_error::deserialize(jd)?;
 
         Ok(list)
     }
@@ -213,7 +211,8 @@ impl SecretsClient {
         let resp = self.client.execute(req).await?;
 
         let bytes = resp.bytes().await?;
-        let secret = serde_json::from_reader(bytes.as_ref())?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let secret = serde_path_to_error::deserialize(jd)?;
 
         Ok(secret)
     }

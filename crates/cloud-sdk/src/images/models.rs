@@ -1,5 +1,9 @@
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::io::{self, Write};
+use url;
 
 /// Internal representation of build information from the API.
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,7 +53,7 @@ pub struct BuildListResponse {
 }
 
 /// The status of an image build.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildStatus {
     /// The build is pending.
@@ -78,15 +82,11 @@ pub struct CancelBuildResponse {
 /// Request parameters for building an image.
 #[derive(Builder, Clone, Debug)]
 pub struct ImageBuildRequest {
-    /// The name of the image to build.
-    #[builder(setter(into))]
-    pub image_name: String,
+    /// The image definition.
+    pub image: Image,
     /// The tag for the image.
     #[builder(setter(into))]
     pub image_tag: String,
-    /// The build context data as a tar.gz archive.
-    #[builder(setter(into))]
-    pub context_data: Vec<u8>,
     /// The name of the application this image belongs to.
     #[builder(setter(into))]
     pub application_name: String,
@@ -96,6 +96,9 @@ pub struct ImageBuildRequest {
     /// The name of the function in the application.
     #[builder(setter(into))]
     pub function_name: String,
+    /// The SDK version for hashing.
+    #[builder(setter(into))]
+    pub sdk_version: String,
 }
 
 impl ImageBuildRequest {
@@ -241,5 +244,249 @@ pub struct StreamLogsRequest {
 impl StreamLogsRequest {
     pub fn builder() -> StreamLogsRequestBuilder {
         StreamLogsRequestBuilder::default()
+    }
+}
+
+/// Type of image build operation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImageBuildOperationType {
+    /// Copy files from the build context.
+    COPY,
+    /// Run a command.
+    RUN,
+    /// Add files or URLs.
+    ADD,
+    /// Set environment variables.
+    ENV,
+}
+
+/// Image build operation.
+#[derive(Debug, Clone, Builder)]
+pub struct ImageBuildOperation {
+    /// The type of operation.
+    pub operation_type: ImageBuildOperationType,
+    /// Arguments for the operation.
+    #[builder(setter(into))]
+    pub args: Vec<String>,
+    /// Options for the operation.
+    #[builder(default, setter(into))]
+    pub options: HashMap<String, String>,
+}
+
+impl ImageBuildOperation {
+    pub fn builder() -> ImageBuildOperationBuilder {
+        ImageBuildOperationBuilder::default()
+    }
+}
+
+/// Image definition for building container images.
+#[derive(Debug, Clone, Builder)]
+pub struct Image {
+    /// The name of the image.
+    #[builder(setter(into))]
+    pub name: String,
+    /// The base image to use.
+    #[builder(setter(into))]
+    pub base_image: String,
+    /// List of build operations.
+    #[builder(default)]
+    pub build_operations: Vec<ImageBuildOperation>,
+}
+
+impl Image {
+    pub fn builder() -> ImageBuilder {
+        ImageBuilder::default()
+    }
+
+    /// Calculate the hash for this image, matching the Python implementation.
+    pub fn image_hash(&self, sdk_version: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.name.as_bytes());
+        hasher.update(self.base_image.as_bytes());
+        for op in &self.build_operations {
+            add_build_op_to_hasher(op, &mut hasher);
+        }
+        hasher.update(sdk_version.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+
+    /// Generate the Dockerfile content for this image.
+    pub fn dockerfile_content(&self, sdk_version: &str) -> String {
+        let mut lines = vec![
+            format!("FROM {}", self.base_image),
+            "WORKDIR /app".to_string(),
+        ];
+
+        for op in &self.build_operations {
+            lines.push(render_build_operation(op));
+        }
+
+        lines.push(format!("RUN pip install tensorlake=={}", sdk_version));
+
+        lines.join("\n")
+    }
+
+    /// Create a tar.gz archive containing the build context.
+    pub fn create_context_archive<W: Write>(&self, writer: W, sdk_version: &str) -> io::Result<()> {
+        let gz_writer = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
+        let mut tar = tar::Builder::new(gz_writer);
+
+        for op in &self.build_operations {
+            match op.operation_type {
+                ImageBuildOperationType::COPY => {
+                    if let Some(src) = op.args.first()
+                        && std::path::Path::new(src).exists()
+                    {
+                        tar.append_dir_all(src, src)?;
+                    }
+                }
+                ImageBuildOperationType::ADD => {
+                    if let Some(src) = op.args.first() {
+                        if is_url(src) || is_git_repo_url(src) {
+                            // Skip URLs and Git repos
+                            continue;
+                        }
+                        if !std::path::Path::new(src).exists() {
+                            // Skip non-existent files
+                            continue;
+                        }
+                        if is_inside_git_dir(src) {
+                            // Skip files inside .git directory
+                            continue;
+                        }
+                        tar.append_path(src)?;
+                    }
+                }
+                _ => {} // Other operations don't add files
+            }
+        }
+
+        // Add Dockerfile
+        let dockerfile = self.dockerfile_content(sdk_version);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(dockerfile.len() as u64);
+        header.set_mode(0o644);
+        tar.append_data(&mut header, "Dockerfile", dockerfile.as_bytes())?;
+
+        tar.finish()?;
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for ImageBuildOperationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageBuildOperationType::COPY => write!(f, "COPY"),
+            ImageBuildOperationType::RUN => write!(f, "RUN"),
+            ImageBuildOperationType::ADD => write!(f, "ADD"),
+            ImageBuildOperationType::ENV => write!(f, "ENV"),
+        }
+    }
+}
+
+fn render_build_operation(op: &ImageBuildOperation) -> String {
+    let options = if op.options.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " {}",
+            op.options
+                .iter()
+                .map(|(k, v)| format!("--{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    };
+
+    let body = match op.operation_type {
+        ImageBuildOperationType::ENV => {
+            if op.args.len() >= 2 {
+                format!("{}=\"{}\"", op.args[0], op.args[1])
+            } else {
+                op.args.join(" ")
+            }
+        }
+        _ => op.args.join(" "),
+    };
+
+    format!("{}{} {}", op.operation_type, options, body)
+}
+
+fn is_url(path: &str) -> bool {
+    if let Ok(url) = url::Url::parse(path) {
+        matches!(url.scheme(), "http" | "https")
+    } else {
+        false
+    }
+}
+
+fn is_git_repo_url(path: &str) -> bool {
+    if let Ok(url) = url::Url::parse(path) {
+        if url.scheme() == "git" {
+            return true;
+        }
+        if let Some(host) = url.host_str() {
+            return host == "github.com" || host.ends_with(".github.com");
+        }
+    }
+    false
+}
+
+fn is_inside_git_dir(path: &str) -> bool {
+    std::path::Path::new(path)
+        .components()
+        .any(|c| c.as_os_str() == ".git")
+}
+
+fn add_build_op_to_hasher(op: &ImageBuildOperation, hasher: &mut Sha256) {
+    hasher.update(op.operation_type.to_string().as_bytes());
+
+    match op.operation_type {
+        ImageBuildOperationType::RUN
+        | ImageBuildOperationType::ADD
+        | ImageBuildOperationType::ENV => {
+            for arg in &op.args {
+                hasher.update(arg.as_bytes());
+            }
+        }
+        ImageBuildOperationType::COPY => {
+            if let Some(src) = op.args.first() {
+                hash_directory(src, hasher);
+            }
+        }
+    }
+}
+
+fn hash_directory(path: &str, hasher: &mut Sha256) {
+    use std::fs;
+    use std::io::Read;
+
+    fn visit_dir(dir: &std::path::Path, hasher: &mut Sha256) -> io::Result<()> {
+        if dir.is_dir() {
+            let entries = fs::read_dir(dir)?;
+            for entry in entries {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    visit_dir(&path, hasher)?;
+                } else {
+                    let mut file = fs::File::open(&path)?;
+                    let mut buffer = [0u8; 1024];
+                    loop {
+                        let bytes_read = file.read(&mut buffer)?;
+                        if bytes_read == 0 {
+                            break;
+                        }
+                        hasher.update(&buffer[..bytes_read]);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let path = std::path::Path::new(path);
+    if path.exists() {
+        visit_dir(path, hasher).unwrap();
     }
 }

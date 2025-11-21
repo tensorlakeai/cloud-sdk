@@ -33,6 +33,10 @@ pub enum SdkError {
     #[error(transparent)]
     Http(#[from] reqwest::Error),
 
+    /// Reqwest middleware errors
+    #[error(transparent)]
+    Middleware(#[from] reqwest_middleware::Error),
+
     /// Errors specific to the Images client
     #[error(transparent)]
     Images(#[from] ImagesError),
@@ -41,6 +45,10 @@ pub enum SdkError {
     #[error("Invalid header value: {0}")]
     InvalidHeaderValue(String),
 
+    /// Client configuration error
+    #[error("Client error: {0}")]
+    ClientError(String),
+
     /// General IO errors
     #[error(transparent)]
     Io(#[from] std::io::Error),
@@ -48,6 +56,10 @@ pub enum SdkError {
     /// JSON serialization/deserialization errors
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    /// JSON serialization/deserialization errors
+    #[error(transparent)]
+    JsonWithError(#[from] serde_path_to_error::Error<serde_json::Error>),
 
     /// Errors specific to the Secrets client
     #[error(transparent)]

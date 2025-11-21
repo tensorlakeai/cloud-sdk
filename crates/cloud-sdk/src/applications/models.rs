@@ -1,17 +1,20 @@
 use derive_builder::Builder;
+use futures::Stream;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
+use std::{collections::HashMap, pin::Pin};
 use uuid::Uuid;
+
+use crate::error::SdkError;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct ApplicationManifest {
     #[builder(setter(into))]
     pub name: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub description: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub tags: HashMap<String, String>,
     #[builder(setter(into))]
     pub version: String,
@@ -26,7 +29,6 @@ impl ApplicationManifest {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "EntrypointBuilder")]
 pub struct Entrypoint {
     #[builder(setter(into))]
     pub function_name: String,
@@ -45,25 +47,30 @@ impl Entrypoint {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "FunctionManifestBuilder")]
 pub struct FunctionManifest {
     #[builder(setter(into))]
     pub name: String,
-    #[builder(setter(into))]
+    #[builder(setter(into), default)]
     pub description: String,
+    #[builder(default)]
     pub is_api: bool,
     #[builder(setter(into, strip_option), default)]
     pub secret_names: Vec<String>,
+    #[builder(default)]
     pub initialization_timeout_sec: i32,
+    #[builder(default)]
     pub timeout_sec: i32,
     pub resources: Resources,
+    #[builder(default)]
     pub retry_policy: RetryPolicy,
     #[builder(setter(into, strip_option), default)]
     pub cache_key: Option<String>,
     #[builder(setter(into), default)]
     pub parameters: Vec<Parameter>,
     pub return_type: serde_json::Value,
+    #[builder(default)]
     pub placement_constraints: PlacementConstraintsManifest,
+    #[builder(default)]
     pub max_concurrency: i32,
 }
 
@@ -74,7 +81,6 @@ impl FunctionManifest {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "ResourcesBuilder")]
 pub struct Resources {
     pub cpus: f64,
     pub memory_mb: i64,
@@ -90,7 +96,6 @@ impl Resources {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "RetryPolicyBuilder")]
 pub struct RetryPolicy {
     pub max_retries: i32,
     pub initial_delay_sec: f64,
@@ -105,7 +110,6 @@ impl RetryPolicy {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "PlacementConstraintsManifestBuilder")]
 pub struct PlacementConstraintsManifest {
     #[builder(setter(into), default)]
     pub filter_expressions: Vec<String>,
@@ -117,14 +121,55 @@ impl PlacementConstraintsManifest {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
-#[builder(name = "ParameterBuilder")]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Builder)]
+pub struct DataType {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub typ: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub items: Option<Box<DataType>>,
+    #[serde(
+        rename = "additionalProperties",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[builder(setter(into, strip_option), default)]
+    pub additional_properties: Option<Box<DataType>>,
+    #[serde(rename = "anyOf", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub any_of: Option<Vec<DataType>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub description: Option<String>,
+    #[serde(rename = "default", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    pub default_value: Option<serde_json::Value>,
+}
+
+impl DataType {
+    pub fn builder() -> DataTypeBuilder {
+        DataTypeBuilder::default()
+    }
+
+    pub fn to_json_value(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
+    }
+
+    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct Parameter {
     #[builder(setter(into))]
     pub name: String,
-    #[serde(rename = "type")]
+    #[builder(setter(into, strip_option), default)]
+    pub description: Option<String>,
+    #[builder(setter(into), default = "true")]
+    pub required: bool,
     #[builder(setter(into))]
-    pub param_type: String,
+    pub data_type: DataType,
 }
 
 impl Parameter {
@@ -151,14 +196,26 @@ pub struct Application {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<i64>,
     pub description: String,
-    pub entrypoint: Box<EntryPointManifest>,
+    pub entrypoint: EntryPointManifest,
     pub functions: HashMap<String, ApplicationFunction>,
     pub name: String,
     pub namespace: String,
     pub tags: HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tombstoned: Option<bool>,
+    #[serde(skip_serializing)]
+    pub state: ApplicationState,
     pub version: String,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApplicationState {
+    #[default]
+    Active,
+    Disabled {
+        reason: String,
+    },
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -175,12 +232,7 @@ pub struct ApplicationFunction {
     pub placement_constraints: Box<PlacementConstraints>,
     pub resources: Box<FunctionResources>,
     pub retry_policy: Box<NodeRetryPolicy>,
-    #[serde(
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub return_type: Option<Option<serde_json::Value>>,
+    pub return_type: Option<serde_json::Value>,
     pub secret_names: Vec<String>,
     pub timeout_sec: i32,
 }
@@ -224,18 +276,17 @@ pub struct DownloadOutput {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EntryPointManifest {
     pub function_name: String,
-    pub name: String,
-    pub version: String,
+    pub input_serializer: String,
+    pub output_serializer: String,
+    pub output_type_hints_base64: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionResources {
-    pub cpu_count: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gpus: Option<Vec<GpuResources>>,
-    pub memory_bytes: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage_bytes: Option<i64>,
+    pub cpus: f64,
+    pub gpus: Vec<GpuResources>,
+    pub memory_mb: i64,
+    pub ephemeral_disk_mb: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -266,22 +317,21 @@ pub enum FunctionRunStatus {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpuResources {
-    pub count: i32,
+    pub count: u32,
     pub model: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeRetryPolicy {
-    pub backoff_multiplier: f64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub delay_multiplier: Option<f64>,
     pub max_retries: i32,
-    pub timeout_secs: i64,
+    pub initial_delay_sec: f64,
+    pub max_delay_sec: f64,
+    pub delay_multiplier: f64,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParameterMetadata {
-    pub data_type: String,
+    pub data_type: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -313,22 +363,36 @@ pub struct RequestError {
     pub message: String,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RequestFailureReason {
-    #[serde(rename = "requesterror")]
-    Requesterror,
+    #[serde(alias = "unknown")]
+    Unknown,
+    #[serde(alias = "internalerror", alias = "internal_error")]
+    InternalError,
+    #[serde(alias = "functionerror", alias = "function_error")]
+    FunctionError,
+    #[serde(alias = "requesterror", alias = "request_error")]
+    RequestError,
+    #[serde(alias = "nextfunctionnotfound", alias = "next_function_not_found")]
+    NextFunctionNotFound,
+    #[serde(alias = "constraintunsatisfiable", alias = "constraint_unsatisfiable")]
+    ConstraintUnsatisfiable,
+    #[serde(alias = "functiontimeout", alias = "function_timeout")]
+    FunctionTimeout,
+    #[serde(alias = "cancelled")]
+    Cancelled,
+    #[serde(alias = "outofmemory", alias = "out_of_memory")]
+    OutOfMemory,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[serde(rename_all = "lowercase")]
 pub enum RequestOutcome {
-    Success(serde_json::Value),
-    Failure(RequestOutcomeOneOf),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct RequestOutcomeOneOf {
-    pub failure: RequestFailureReason,
+    #[default]
+    Unknown,
+    Success,
+    Failure(RequestFailureReason),
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -359,7 +423,7 @@ pub struct EventsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
     FunctionRunCreated(FunctionRunCreated),
@@ -367,7 +431,21 @@ pub enum RequestStateChangeEvent {
     FunctionRunCompleted(FunctionRunCompleted),
     FunctionRunMatchedCache(FunctionRunMatchedCache),
     RequestCreated(RequestCreatedEvent),
+    RequestProgressUpdated(RequestProgressUpdated),
     RequestFinished(RequestFinishedEvent),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestProgressUpdated {
+    pub request_id: String,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub step: Option<usize>,
+    #[serde(default)]
+    pub total: Option<usize>,
+    #[serde(default)]
+    pub attributes: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -378,6 +456,8 @@ pub struct RequestCreatedEvent {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestFinishedEvent {
     pub request_id: String,
+    #[serde(default)]
+    pub outcome: RequestOutcome,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -552,6 +632,14 @@ impl InvokeApplicationRequest {
     }
 }
 
+/// Response from invoking an application
+pub enum InvokeResponse {
+    /// The request ID of the invocation
+    RequestId(String),
+    /// A stream of progress events
+    Stream(Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>),
+}
+
 #[derive(Builder, Debug)]
 pub struct ListApplicationsRequest {
     #[builder(setter(into))]
@@ -649,4 +737,41 @@ impl GetLogsRequest {
     pub fn builder() -> GetLogsRequestBuilder {
         GetLogsRequestBuilder::default()
     }
+}
+
+#[derive(Builder, Clone, Debug)]
+pub struct ProgressUpdatesRequest {
+    #[builder(setter(into))]
+    pub namespace: String,
+    #[builder(setter(into))]
+    pub application: String,
+    #[builder(setter(into))]
+    pub request_id: String,
+    pub mode: ProgressUpdatesRequestMode,
+}
+
+#[derive(Clone, Debug)]
+pub enum ProgressUpdatesRequestMode {
+    Paginated(Option<String>),
+    FetchAll,
+    Stream,
+}
+
+impl ProgressUpdatesRequest {
+    pub fn builder() -> ProgressUpdatesRequestBuilder {
+        ProgressUpdatesRequestBuilder::default()
+    }
+}
+
+pub enum ProgressUpdatesResponse {
+    /// A JSON object containing progress updates
+    Updates(ProgressUpdates),
+    /// A stream of progress events
+    Stream(Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ProgressUpdates {
+    pub updates: Vec<RequestStateChangeEvent>,
+    pub next_token: Option<String>,
 }

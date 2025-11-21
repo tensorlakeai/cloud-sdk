@@ -6,31 +6,39 @@
 //! ## Usage
 //!
 //! ```rust
-//! use tensorlake_cloud_sdk::{Sdk, images::models::ImageBuildRequest};
+//! use tensorlake_cloud_sdk::{Sdk, images::models::{ImageBuildRequest, Image}};
 //!
 //! let sdk = Sdk::new("https://api.tensorlake.ai", "your-api-key").unwrap();
 //! let images_client = sdk.images();
 //!
-//! // Build an image
-//! let build_request = ImageBuildRequest {
-//!     image_name: "my-app".to_string(),
-//!     image_tag: "latest".to_string(),
-//!     context_data: vec![/* tar.gz context data */],
-//!     application_name: "my-app".to_string(),
-//!     application_version: "1.0.0".to_string(),
-//!     function_name: "main".to_string(),
-//! };
+//! // Define an image
+//! let image = Image::builder()
+//!     .name("my-app")
+//!     .base_image("python:3.9")
+//!     .build().unwrap();
+//!
+//! // Build the image
+//! let build_request = ImageBuildRequest::builder()
+//!     .image(image)
+//!     .image_tag("latest")
+//!     .application_name("my-app")
+//!     .application_version("1.0.0")
+//!     .function_name("main")
+//!     .sdk_version("0.3.12")
+//!     .build().unwrap();
 //!
 //! images_client.build_image(build_request);
 //! ```
 
-use std::io::Error;
+use std::{io::Error, time::Duration};
 
 use crate::{client::Client, error::SdkError, event_source::SseDecoder};
 use futures::{TryStreamExt, stream::Stream};
-use hex;
-use reqwest::{Method, header::ACCEPT, multipart::Form};
-use sha2::{Digest, Sha256};
+use reqwest::{
+    Method,
+    header::ACCEPT,
+    multipart::{Form, Part},
+};
 use tokio_util::{codec::FramedRead, io::StreamReader};
 
 pub mod error;
@@ -38,7 +46,6 @@ pub mod models;
 use models::*;
 
 /// A client for managing image builds in Tensorlake Cloud.
-#[derive(Debug)]
 pub struct ImagesClient {
     client: Client,
 }
@@ -86,18 +93,24 @@ impl ImagesClient {
     /// # Example
     ///
     /// ```rust
-    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::ImageBuildRequest}};
+    /// use tensorlake_cloud_sdk::{Client, images::{ImagesClient, models::{ImageBuildRequest, Image}}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
     ///     let images_client = ImagesClient::new(client);
+    ///
+    ///     // Define an image
+    ///     let image = Image::builder()
+    ///         .name("my-app")
+    ///         .base_image("python:3.9")
+    ///         .build()?;
     ///     let request = ImageBuildRequest::builder()
-    ///         .image_name("my-image")
+    ///         .image(image)
     ///         .image_tag("v1.0")
-    ///         .context_data(vec![/* context tar.gz data */])
     ///         .application_name("my-app")
     ///         .application_version("1.0.0")
     ///         .function_name("main")
+    ///         .sdk_version("0.2.75")
     ///         .build()?;
     ///
     ///     images_client.build_image(request).await?;
@@ -117,23 +130,25 @@ impl ImagesClient {
         &self,
         request: &ImageBuildRequest,
     ) -> Result<BuildInfo, SdkError> {
+        let mut context_data = Vec::new();
+        request
+            .image
+            .create_context_archive(&mut context_data, &request.sdk_version)?;
+        let image_hash = request.image.image_hash(&request.sdk_version);
         let form = Form::new()
             .text("graph_name", request.application_name.clone())
             .text("graph_version", request.application_version.clone())
             .text("graph_function_name", request.function_name.clone())
-            .text("image_hash", self.calculate_image_hash(request))
-            .text("image_name", request.image_name.clone())
+            .text("image_hash", image_hash)
+            .text("image_name", request.image.name.clone())
             .part(
                 "context",
-                reqwest::multipart::Part::bytes(request.context_data.clone())
-                    .file_name("context.tar.gz"),
+                Part::bytes(context_data).file_name("context.tar.gz"),
             );
 
-        let request = self
-            .client
-            .request(Method::PUT, "/images/v2/builds")
-            .multipart(form)
-            .build()?;
+        let request =
+            self.client
+                .build_multipart_request(Method::PUT, "/images/v2/builds", form)?;
 
         let response = self.client.execute(request).await?;
         let json = response.json::<BuildInfo>().await?;
@@ -143,13 +158,8 @@ impl ImagesClient {
 
     /// Poll the build status until completion.
     async fn poll_build_status(&self, build_id: &str) -> Result<ImageBuildResult, SdkError> {
-        let mut attempts = 0;
         loop {
-            attempts += 1;
-            if attempts > 10 {
-                return Err(error::ImagesError::BuildTimeout { attempts }.into());
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
 
             let uri_str = format!("/images/v2/builds/{build_id}");
             let request = self.client.request(Method::GET, &uri_str).build()?;
@@ -395,14 +405,5 @@ impl ImagesClient {
         let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
 
         Ok(frame.into_stream())
-    }
-
-    /// Calculate a simple image hash for the build request.
-    fn calculate_image_hash(&self, request: &ImageBuildRequest) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(request.image_name.as_bytes());
-        hasher.update(request.image_tag.as_bytes());
-        hasher.update(&request.context_data);
-        hex::encode(hasher.finalize())
     }
 }

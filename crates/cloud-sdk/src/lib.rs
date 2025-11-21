@@ -92,7 +92,6 @@ pub use client::*;
 /// let apps_client = sdk.applications();
 /// let secrets_client = sdk.secrets();
 /// ```
-#[derive(Debug)]
 pub struct Sdk {
     client: Client,
 }
@@ -125,6 +124,30 @@ impl Sdk {
     /// ```
     pub fn new(base_url: &str, bearer_token: &str) -> Result<Self, error::SdkError> {
         let client = Client::new(base_url, bearer_token)?;
+        Ok(Self { client })
+    }
+
+    /// Create a new SDK instance with additional middleware.
+    ///
+    /// This allows injecting custom middleware such as VCR recording/playback
+    /// or other request/response interceptors.
+    ///
+    /// # Arguments
+    ///
+    /// * `middleware` - The middleware to inject into the HTTP client
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Sdk` instance configured with the provided middleware.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client cannot be created or configured.
+    pub fn with_middleware<M>(self, middleware: M) -> Result<Self, error::SdkError>
+    where
+        M: reqwest_middleware::Middleware + 'static,
+    {
+        let client = self.client.with_middleware(middleware)?;
         Ok(Self { client })
     }
 
