@@ -423,7 +423,7 @@ pub struct EventsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
     FunctionRunCreated(FunctionRunCreated),
