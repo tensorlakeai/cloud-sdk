@@ -793,16 +793,14 @@ impl ApplicationsClient {
         let req_builder = self.client.base_request(Method::GET, &uri_str);
 
         match &request.mode {
-            models::ProgressUpdatesRequestMode::Paginated(None) => {
+            models::ProgressUpdatesRequestMode::Paginated(None)
+            | &models::ProgressUpdatesRequestMode::FetchAll => {
                 req_builder.header(ACCEPT, "application/json").build()
             }
             models::ProgressUpdatesRequestMode::Paginated(Some(token)) => req_builder
                 .header(ACCEPT, "application/json")
-                .query(&[("next_token", token)])
+                .query(&[("nextToken", token)])
                 .build(),
-            models::ProgressUpdatesRequestMode::FetchAll => {
-                req_builder.header(ACCEPT, "application/json").build()
-            }
             models::ProgressUpdatesRequestMode::Stream => {
                 req_builder.header(ACCEPT, "text/event-stream").build()
             }
