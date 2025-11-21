@@ -790,7 +790,7 @@ impl ApplicationsClient {
             "/v1/namespaces/{}/applications/{}/requests/{}/updates",
             request.namespace, request.application, request.request_id
         );
-        let req_builder = self.client.base_request(Method::POST, &uri_str);
+        let req_builder = self.client.base_request(Method::GET, &uri_str);
 
         match &request.mode {
             models::ProgressUpdatesRequestMode::Paginated(None) => {
