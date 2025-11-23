@@ -386,7 +386,6 @@ pub enum RequestFailureReason {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
 #[serde(rename_all = "lowercase")]
 pub enum RequestOutcome {
     #[default]
@@ -423,7 +422,7 @@ pub struct EventsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
     FunctionRunCreated(FunctionRunCreated),
@@ -450,11 +449,17 @@ pub struct RequestProgressUpdated {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestCreatedEvent {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestFinishedEvent {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
     #[serde(default)]
     pub outcome: RequestOutcome,
@@ -462,11 +467,17 @@ pub struct RequestFinishedEvent {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestStartedEvent {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FunctionRunCreated {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
@@ -474,6 +485,9 @@ pub struct FunctionRunCreated {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FunctionRunAssigned {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
@@ -491,6 +505,9 @@ pub enum FunctionRunOutcomeSummary {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FunctionRunCompleted {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
@@ -500,6 +517,9 @@ pub struct FunctionRunCompleted {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FunctionRunMatchedCache {
+    pub namespace: String,
+    pub application_name: String,
+    pub application_version: String,
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
