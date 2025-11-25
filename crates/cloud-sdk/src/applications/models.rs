@@ -352,15 +352,28 @@ pub struct Request {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outcome: Option<RequestOutcome>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "failureReason")]
     pub failure_reason: Option<RequestFailureReason>,
+    #[serde(alias = "applicationVersion")]
     pub application_version: String,
+    #[serde(alias = "createdAt")]
     pub created_at: u128,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "requestError")]
     pub request_error: Option<Box<RequestError>>,
+    #[serde(alias = "functionRuns")]
     pub function_runs: Vec<FunctionRun>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(
+        skip_serializing_if = "Vec::is_empty",
+        default,
+        alias = "progressUpdates"
+    )]
     pub progress_updates: Vec<RequestStateChangeEvent>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        alias = "updatesPaginationToken"
+    )]
+    pub updates_pagination_token: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
