@@ -5,11 +5,13 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{ListApplicationsRequest, GetApplicationRequest}}};
+//! use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::{ListApplicationsRequest, GetApplicationRequest}}};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
-//! let apps_client = ApplicationsClient::new(client);
+//!     let client = ClientBuilder::new("https://api.tensorlake.ai")
+//!         .bearer_token("your-api-key")
+//!         .build()?;
+//!     let apps_client = ApplicationsClient::new(client);
 //!
 //! // List applications in a namespace
 //! let request = ListApplicationsRequest::builder()
@@ -64,10 +66,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust
-    /// use tensorlake_cloud_sdk::{Client, applications::ApplicationsClient};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::ApplicationsClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     /// let apps_client = ApplicationsClient::new(client);
     /// Ok(())
     /// }
@@ -89,10 +93,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::ApplicationsClient};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::ApplicationsClient};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = tensorlake_cloud_sdk::applications::models::ListApplicationsRequest {
     ///         namespace: "default".to_string(),
@@ -144,10 +150,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::GetApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::GetApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = GetApplicationRequest::builder()
     ///         .namespace("default")
@@ -186,10 +194,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{UpsertApplicationRequest, ApplicationManifest}}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::{UpsertApplicationRequest, ApplicationManifest}}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     // Note: Requires constructing a full ApplicationManifest model with all required fields
     ///     // This is typically done by parsing from configuration files or build manifests
@@ -234,10 +244,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteApplicationRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::DeleteApplicationRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = DeleteApplicationRequest::builder()
     ///         .namespace("default")
@@ -273,11 +285,13 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::{InvokeApplicationRequest, InvokeResponse}}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::{InvokeApplicationRequest, InvokeResponse}}};
     /// use serde_json;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let data = serde_json::json!({"input": "hello world"});
     ///     let request = InvokeApplicationRequest::builder()
@@ -351,10 +365,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::ListRequestsRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::ListRequestsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = ListRequestsRequest::builder()
     ///         .namespace("default")
@@ -404,10 +420,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DeleteRequestRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::DeleteRequestRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = DeleteRequestRequest::builder()
     ///         .namespace("default")
@@ -447,10 +465,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::DownloadFunctionOutputRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::DownloadFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = DownloadFunctionOutputRequest::builder()
     ///         .namespace("default")
@@ -501,11 +521,13 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::StreamProgressRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::StreamProgressRequest}};
     /// use futures::StreamExt;
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = StreamProgressRequest::builder()
     ///         .namespace("default")
@@ -561,10 +583,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::CheckFunctionOutputRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::CheckFunctionOutputRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = CheckFunctionOutputRequest::builder()
     ///         .namespace("default")
@@ -665,10 +689,12 @@ impl ApplicationsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, applications::{ApplicationsClient, models::GetLogsRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::GetLogsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let apps_client = ApplicationsClient::new(client);
     ///     let request = GetLogsRequest::builder()
     ///         .namespace("default")

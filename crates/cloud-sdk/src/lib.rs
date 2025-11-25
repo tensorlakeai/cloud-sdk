@@ -74,7 +74,7 @@ use images::*;
 use secrets::*;
 
 mod client;
-pub use client::*;
+pub use client::{Client, ClientBuilder};
 
 /// The main entry point for the Tensorlake Cloud SDK.
 ///
@@ -124,31 +124,44 @@ impl Sdk {
     /// # }
     /// ```
     pub fn new(base_url: &str, bearer_token: &str) -> Result<Self, error::SdkError> {
-        let client = Client::new(base_url, bearer_token)?;
+        let client = ClientBuilder::new(base_url)
+            .bearer_token(bearer_token)
+            .build()?;
         Ok(Self { client })
     }
 
-    /// Create a new SDK instance with additional middleware.
+    /// Create a new SDK instance using a client builder.
     ///
-    /// This allows injecting custom middleware such as VCR recording/playback
-    /// or other request/response interceptors.
+    /// This method allows for more flexible configuration of the SDK client,
+    /// including custom middleware, bearer tokens, and organization/project scopes.
     ///
     /// # Arguments
     ///
-    /// * `middleware` - The middleware to inject into the HTTP client
+    /// * `builder` - A configured [`ClientBuilder`]
     ///
     /// # Returns
     ///
-    /// Returns a new `Sdk` instance configured with the provided middleware.
+    /// Returns a new `Sdk` instance configured with the builder's settings.
     ///
     /// # Errors
     ///
     /// Returns an error if the HTTP client cannot be created or configured.
-    pub fn with_middleware<M>(self, middleware: M) -> Result<Self, error::SdkError>
-    where
-        M: reqwest_middleware::Middleware + 'static,
-    {
-        let client = self.client.with_middleware(middleware)?;
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tensorlake_cloud_sdk::{Sdk, ClientBuilder};
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let builder = ClientBuilder::new("https://api.tensorlake.ai")
+    ///     .bearer_token("your-api-key")
+    ///     .scope("org-id", "project-id");
+    /// let sdk = Sdk::with_client_builder(builder)?;
+    /// Ok(())
+    /// # }
+    /// ```
+    pub fn with_client_builder(builder: ClientBuilder) -> Result<Self, error::SdkError> {
+        let client = builder.build()?;
         Ok(Self { client })
     }
 
