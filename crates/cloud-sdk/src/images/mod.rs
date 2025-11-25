@@ -46,6 +46,7 @@ pub mod models;
 use models::*;
 
 /// A client for managing image builds in Tensorlake Cloud.
+#[derive(Clone)]
 pub struct ImagesClient {
     client: Client,
 }

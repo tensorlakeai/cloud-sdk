@@ -49,6 +49,7 @@ use crate::{
 ///
 /// This client provides high-level methods for managing applications, requests, and related operations.
 /// It wraps the raw API calls with a more ergonomic interface.
+#[derive(Clone)]
 pub struct ApplicationsClient {
     client: Client,
 }
