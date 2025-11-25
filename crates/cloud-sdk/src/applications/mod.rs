@@ -395,7 +395,7 @@ impl ApplicationsClient {
             req_builder = req_builder.query(&[("limit", &param_value.to_string())]);
         }
         if let Some(ref param_value) = request.cursor {
-            req_builder = req_builder.query(&[("cursor", &param_value.to_string())]);
+            req_builder = req_builder.query(&[("cursor", &param_value)]);
         }
         if let Some(ref param_value) = request.direction {
             req_builder = req_builder.query(&[("direction", &param_value.to_string())]);
@@ -409,6 +409,58 @@ impl ApplicationsClient {
         let list = serde_path_to_error::deserialize(jd)?;
 
         Ok(list)
+    }
+
+    /// Get details of a specific request.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The get request request
+    ///
+    /// # Returns
+    ///
+    /// Returns the request details including all function runs and their allocations.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use tensorlake_cloud_sdk::{ClientBuilder, applications::{ApplicationsClient, models::GetRequestRequest}};
+    ///
+    /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
+    ///     let apps_client = ApplicationsClient::new(client);
+    ///     let request = GetRequestRequest::builder()
+    ///         .namespace("default")
+    ///         .application("my-app")
+    ///         .request_id("request-123")
+    ///         .build()?;
+    ///     let req_details = apps_client.get_request(&request).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn get_request(
+        &self,
+        request: &models::GetRequestRequest,
+    ) -> Result<models::Request, SdkError> {
+        let uri_str = format!(
+            "/v1/namespaces/{}/applications/{}/requests/{}",
+            request.namespace, request.application, request.request_id
+        );
+        let mut req_builder = self.client.request(Method::GET, &uri_str);
+        if let Some(token) = &request.updates_pagination_token {
+            req_builder = req_builder.query(&["nextToken", token]);
+        }
+
+        let req = req_builder.build()?;
+        let resp = self.client.execute(req).await?;
+
+        let bytes = resp.bytes().await?;
+        let jd = &mut serde_json::Deserializer::from_reader(bytes.as_ref());
+        let req_details = serde_path_to_error::deserialize(jd)?;
+
+        Ok(req_details)
     }
 
     /// Delete a request.
