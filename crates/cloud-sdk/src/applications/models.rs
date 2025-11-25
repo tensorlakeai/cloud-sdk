@@ -347,14 +347,33 @@ pub struct PlacementConstraints {
     pub locations: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Request {
-    pub created_at: i64,
-    pub function_runs: Vec<FunctionRun>,
     pub id: String,
-    pub outcome: RequestOutcome,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_error: Option<Option<Box<RequestError>>>,
+    pub outcome: Option<RequestOutcome>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "failureReason")]
+    pub failure_reason: Option<RequestFailureReason>,
+    #[serde(alias = "applicationVersion")]
+    pub application_version: String,
+    #[serde(alias = "createdAt")]
+    pub created_at: u128,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "requestError")]
+    pub request_error: Option<Box<RequestError>>,
+    #[serde(alias = "functionRuns")]
+    pub function_runs: Vec<FunctionRun>,
+    #[serde(
+        skip_serializing_if = "Vec::is_empty",
+        default,
+        alias = "progressUpdates"
+    )]
+    pub progress_updates: Vec<RequestStateChangeEvent>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        default,
+        alias = "updatesPaginationToken"
+    )]
+    pub updates_pagination_token: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -636,6 +655,24 @@ impl GetApplicationRequest {
 }
 
 #[derive(Builder, Debug)]
+pub struct GetRequestRequest {
+    #[builder(setter(into))]
+    pub namespace: String,
+    #[builder(setter(into))]
+    pub application: String,
+    #[builder(setter(into))]
+    pub request_id: String,
+    #[builder(setter(into, strip_option), default)]
+    pub updates_pagination_token: Option<String>,
+}
+
+impl GetRequestRequest {
+    pub fn builder() -> GetRequestRequestBuilder {
+        GetRequestRequestBuilder::default()
+    }
+}
+
+#[derive(Builder, Debug)]
 pub struct InvokeApplicationRequest {
     #[builder(setter(into))]
     pub namespace: String,
@@ -666,7 +703,7 @@ pub struct ListApplicationsRequest {
     pub namespace: String,
     #[builder(default, setter(strip_option))]
     pub limit: Option<i32>,
-    #[builder(default, setter(strip_option))]
+    #[builder(default, setter(into, strip_option))]
     pub cursor: Option<String>,
     #[builder(default, setter(strip_option))]
     pub direction: Option<CursorDirection>,

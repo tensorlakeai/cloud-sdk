@@ -3,7 +3,7 @@ use reqwest::{
     Request, Response, StatusCode,
     header::{HeaderMap, HeaderValue, InvalidHeaderValue},
 };
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware};
+use reqwest_middleware::{ClientBuilder as ReqwestClientBuilder, ClientWithMiddleware, Middleware};
 use std::{result::Result, sync::Arc};
 
 use crate::error::SdkError;
@@ -12,75 +12,102 @@ use crate::error::SdkError;
 #[derive(Clone)]
 pub struct Client {
     base_url: String,
-    default_headers: HeaderMap,
-    middlewares: Vec<Arc<dyn Middleware + 'static>>,
     client: ClientWithMiddleware,
 }
 
-impl Client {
-    /// Create a new SDK client without any middleware or scopes.
-    pub fn new(base_url: &str, bearer_token: &str) -> Result<Self, SdkError> {
-        let default_headers = new_default_headers(bearer_token)?;
-        let base_client = new_base_client(&default_headers)?;
+/// Builder for creating a [`Client`] with a fluent API.
+///
+/// The base URL is required, while bearer token, middlewares, and scope are optional.
+pub struct ClientBuilder {
+    base_url: String,
+    bearer_token: Option<String>,
+    middlewares: Vec<Arc<dyn Middleware + 'static>>,
+    organization_id: Option<String>,
+    project_id: Option<String>,
+}
 
-        let client = ClientBuilder::new(base_client).build();
-
-        Ok(Self {
+impl ClientBuilder {
+    /// Create a new [`ClientBuilder`] with the specified base URL.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_url` - The base URL of the API
+    pub fn new(base_url: &str) -> Self {
+        Self {
             base_url: base_url.to_string(),
+            bearer_token: None,
             middlewares: Vec::new(),
-            default_headers,
-            client,
-        })
+            organization_id: None,
+            project_id: None,
+        }
     }
 
-    /// Create a new client with additional middleware.
-    ///
-    /// This allows you to inject custom middleware such as VCR recording/playback
-    /// or other request/response interceptors.
-    pub fn with_middleware<M>(self, middleware: M) -> Result<Self, SdkError>
+    /// Set the bearer token for authentication.
+    pub fn bearer_token(mut self, token: &str) -> Self {
+        self.bearer_token = Some(token.to_string());
+        self
+    }
+
+    /// Add middleware to the client.
+    pub fn middleware<M>(mut self, middleware: M) -> Self
     where
         M: Middleware + 'static,
     {
-        let mut middlewares = self.middlewares.clone();
-        middlewares.push(Arc::new(middleware));
-
-        let base_client = new_base_client(&self.default_headers)?;
-        let mut builder = ClientBuilder::new(base_client);
-        for middleware in &self.middlewares {
-            builder = builder.with_arc(middleware.clone());
-        }
-
-        Ok(Self {
-            client: builder.build(),
-            middlewares,
-            ..self
-        })
+        self.middlewares.push(Arc::new(middleware));
+        self
     }
 
-    /// Create a new client with an organization and project scope.
+    /// Add multiple middlewares to the client.
+    pub fn middlewares(mut self, middlewares: Vec<Arc<dyn Middleware + 'static>>) -> Self {
+        self.middlewares = middlewares;
+        self
+    }
+
+    /// Set the organization and project scope.
+    pub fn scope(mut self, organization_id: &str, project_id: &str) -> Self {
+        self.organization_id = Some(organization_id.to_string());
+        self.project_id = Some(project_id.to_string());
+        self
+    }
+
+    /// Build the [`Client`].
     ///
-    /// This allows you to explicitly set the organization and project IDs for the client.
-    pub fn with_scope(self, organization_id: &str, project_id: &str) -> Result<Self, SdkError> {
-        let mut default_headers = self.default_headers.clone();
-        default_headers.insert(
-            "X-Tensorlake-Organization-Id",
-            str_to_header_value(organization_id)?,
-        );
-        default_headers.insert("X-Tensorlake-Project-Id", str_to_header_value(project_id)?);
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client cannot be created or configured.
+    pub fn build(self) -> Result<Client, SdkError> {
+        let mut default_headers = HeaderMap::new();
+
+        // Add bearer token if provided
+        if let Some(token) = &self.bearer_token {
+            default_headers = new_default_headers(token)?;
+        }
+
+        // Add scope headers if provided
+        if let Some(org_id) = &self.organization_id {
+            default_headers.insert("X-Tensorlake-Organization-Id", str_to_header_value(org_id)?);
+        }
+        if let Some(project_id) = &self.project_id {
+            default_headers.insert("X-Tensorlake-Project-Id", str_to_header_value(project_id)?);
+        }
 
         let base_client = new_base_client(&default_headers)?;
-        let mut builder = ClientBuilder::new(base_client);
+        let mut builder = ReqwestClientBuilder::new(base_client);
+
         for middleware in &self.middlewares {
             builder = builder.with_arc(middleware.clone());
         }
 
-        Ok(Self {
-            client: builder.build(),
-            default_headers,
-            ..self
+        let client = builder.build();
+
+        Ok(Client {
+            base_url: self.base_url,
+            client,
         })
     }
+}
 
+impl Client {
     /// Execute an HTTP request.
     pub async fn execute(&self, request: Request) -> Result<Response, SdkError> {
         let response = self.client.execute(request).await?;

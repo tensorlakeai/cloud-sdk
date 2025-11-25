@@ -38,6 +38,7 @@ use models::*;
 use reqwest::Method;
 
 /// A client for managing secrets in Tensorlake Cloud.
+#[derive(Clone)]
 pub struct SecretsClient {
     client: Client,
 }
@@ -52,10 +53,12 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, secrets::SecretsClient};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, secrets::SecretsClient};
     ///
     /// fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let secrets_client = SecretsClient::new(client);
     ///     Ok(())
     /// }
@@ -79,10 +82,12 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::UpsertSecretRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, secrets::{SecretsClient, models::UpsertSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let secrets_client = SecretsClient::new(client);
     ///     let req = UpsertSecretRequest::builder()
     ///         .organization_id("org-123")
@@ -127,10 +132,12 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust
-    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::ListSecretsRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, secrets::{SecretsClient, models::ListSecretsRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let secrets_client = SecretsClient::new(client);
     ///     let request = ListSecretsRequest::builder()
     ///         .organization_id("org-123")
@@ -185,10 +192,12 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::GetSecretRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, secrets::{SecretsClient, models::GetSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let secrets_client = SecretsClient::new(client);
     ///     let request = GetSecretRequest::builder()
     ///         .organization_id("org-123")
@@ -226,10 +235,12 @@ impl SecretsClient {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tensorlake_cloud_sdk::{Client, secrets::{SecretsClient, models::DeleteSecretRequest}};
+    /// use tensorlake_cloud_sdk::{ClientBuilder, secrets::{SecretsClient, models::DeleteSecretRequest}};
     ///
     /// async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let client = Client::new("https://api.tensorlake.ai", "your-api-key")?;
+    ///     let client = ClientBuilder::new("https://api.tensorlake.ai")
+    ///         .bearer_token("your-api-key")
+    ///         .build()?;
     ///     let secrets_client = SecretsClient::new(client);
     ///     let request = DeleteSecretRequest::builder()
     ///         .organization_id("org-123")
