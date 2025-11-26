@@ -181,7 +181,7 @@ impl Parameter {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Allocation {
     pub attempt_number: i32,
-    pub created_at: i32,
+    pub created_at: u128,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_duration_ms: Option<i64>,
     pub executor_id: String,
@@ -291,27 +291,43 @@ pub struct FunctionResources {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionRun {
-    pub allocations: Vec<Allocation>,
-    pub created_at: i64,
-    #[serde(rename = "id")]
+    pub created_at: u128,
     pub id: String,
+    pub name: String,
+    pub namespace: String,
+    pub application: String,
+    pub application_version: String,
+    pub allocations: Vec<Allocation>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub outcome: Option<Option<FunctionRunOutcome>>,
+    pub outcome: Option<FunctionRunOutcome>,
     pub status: FunctionRunStatus,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FunctionRunOutcome {
+    #[serde(alias = "Unknown")]
+    Unknown,
+    #[serde(alias = "Undefined")]
+    Undefined,
+    #[serde(alias = "Success")]
     Success,
+    #[serde(alias = "Failure")]
     Failure,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum FunctionRunStatus {
+    #[serde(alias = "Pending")]
     Pending,
+    #[serde(alias = "Enqueued")]
     Enqueued,
+    #[serde(alias = "Running")]
     Running,
+    #[serde(alias = "Completed")]
     Completed,
+    #[serde(alias = "Failed")]
     Failed,
 }
 
@@ -359,7 +375,7 @@ pub struct Request {
     #[serde(alias = "createdAt")]
     pub created_at: u128,
     #[serde(skip_serializing_if = "Option::is_none", alias = "requestError")]
-    pub request_error: Option<Box<RequestError>>,
+    pub request_error: Option<RequestError>,
     #[serde(alias = "functionRuns")]
     pub function_runs: Vec<FunctionRun>,
     #[serde(
