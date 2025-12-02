@@ -470,6 +470,7 @@ pub enum RequestStateChangeEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
 pub struct RequestProgressUpdated {
     pub request_id: String,
     #[serde(default)]
@@ -477,9 +478,9 @@ pub struct RequestProgressUpdated {
     #[serde(default)]
     pub message: String,
     #[serde(default)]
-    pub step: Option<usize>,
+    pub step: Option<f32>,
     #[serde(default)]
-    pub total: Option<usize>,
+    pub total: Option<f32>,
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
 }
