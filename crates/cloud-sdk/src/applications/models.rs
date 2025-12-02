@@ -473,7 +473,9 @@ pub enum RequestStateChangeEvent {
 pub struct RequestProgressUpdated {
     pub request_id: String,
     #[serde(default)]
-    pub message: Option<String>,
+    pub function_name: String,
+    #[serde(default)]
+    pub message: String,
     #[serde(default)]
     pub step: Option<usize>,
     #[serde(default)]
