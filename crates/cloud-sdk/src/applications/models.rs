@@ -478,9 +478,9 @@ pub struct RequestProgressUpdated {
     #[serde(default)]
     pub message: String,
     #[serde(default)]
-    pub step: Option<f32>,
+    pub step: Option<String>,
     #[serde(default)]
-    pub total: Option<f32>,
+    pub total: Option<String>,
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
 }
