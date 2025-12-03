@@ -470,17 +470,57 @@ pub enum RequestStateChangeEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum StringKind {
+    String(String),
+    Unknown(serde_json::Value),
+}
+
+impl StringKind {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            StringKind::String(value) => Some(value),
+            _ => None,
+        }
+    }
+}
+
+impl Default for StringKind {
+    fn default() -> Self {
+        StringKind::String(String::new())
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum FloatKind {
+    Float(f64),
+    String(String),
+    Unknown(serde_json::Value),
+}
+
+impl FloatKind {
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            FloatKind::Float(value) => Some(*value),
+            FloatKind::String(value) => value.parse().ok(),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct RequestProgressUpdated {
     pub request_id: String,
     #[serde(default)]
     pub function_name: String,
     #[serde(default)]
-    pub message: String,
+    pub message: StringKind,
     #[serde(default)]
-    pub step: Option<String>,
+    pub step: Option<FloatKind>,
     #[serde(default)]
-    pub total: Option<String>,
+    pub total: Option<FloatKind>,
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
 }
