@@ -39,3 +39,7 @@ too_many_arguments = "allow"
 
 [features]
 integration-tests = []
+
+[[example]]
+name = "poll_progress_updates"
+path = "../../examples/poll_progress_updates.rs"
