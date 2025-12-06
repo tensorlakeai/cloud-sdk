@@ -469,6 +469,25 @@ pub enum RequestStateChangeEvent {
     RequestFinished(RequestFinishedEvent),
 }
 
+impl RequestStateChangeEvent {
+    pub fn as_str(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(_) => "RequestStarted",
+            RequestStateChangeEvent::FunctionRunCreated(_) => "FunctionRunCreated",
+            RequestStateChangeEvent::FunctionRunAssigned(_) => "FunctionRunAssigned",
+            RequestStateChangeEvent::FunctionRunCompleted(_) => "FunctionRunCompleted",
+            RequestStateChangeEvent::FunctionRunMatchedCache(_) => "FunctionRunMatchedCache",
+            RequestStateChangeEvent::RequestCreated(_) => "RequestCreated",
+            RequestStateChangeEvent::RequestProgressUpdated(_) => "RequestProgressUpdated",
+            RequestStateChangeEvent::RequestFinished(_) => "RequestFinished",
+        }
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, RequestStateChangeEvent::RequestFinished(_))
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum StringKind {
@@ -879,15 +898,47 @@ impl ProgressUpdatesRequest {
     }
 }
 
+type ProgressUpdatesStream =
+    Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>;
+
 pub enum ProgressUpdatesResponse {
     /// A JSON object containing progress updates
-    Updates(ProgressUpdates),
+    Json(ProgressUpdatesJson),
     /// A stream of progress events
-    Stream(Pin<Box<dyn Stream<Item = Result<RequestStateChangeEvent, SdkError>> + Send>>),
+    Stream(ProgressUpdatesStream),
+}
+
+impl ProgressUpdatesResponse {
+    /// Returns the JSON object containing progress updates.
+    /// Use this function only if the `ProgressUpdatesRequestMode` was set to `ProgressUpdatesRequestMode::Paginated(_)`
+    /// or `ProgressUpdatesRequestMode::FetchAll`.
+    ///
+    /// This function panics if the response is a `ProgressUpdatesResponse::Stream`.
+    pub fn json(&self) -> &ProgressUpdatesJson {
+        match self {
+            ProgressUpdatesResponse::Json(updates) => updates,
+            _ => panic!(
+                "Expected ProgressUpdatesResponse::Json, got ProgressUpdatesResponse::Stream"
+            ),
+        }
+    }
+
+    /// Returns the Stream containing progress updates.
+    /// Use this function only if the `ProgressUpdatesRequestMode` was set to `ProgressUpdatesRequestMode::Stream`.
+    ///
+    /// This function panics if the response is a `ProgressUpdatesResponse::Json`.
+    pub fn stream(&self) -> &ProgressUpdatesStream {
+        match self {
+            ProgressUpdatesResponse::Stream(stream) => stream,
+            _ => panic!(
+                "Expected ProgressUpdatesResponse::Stream, got ProgressUpdatesResponse::Json"
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct ProgressUpdates {
+pub struct ProgressUpdatesJson {
     pub updates: Vec<RequestStateChangeEvent>,
     pub next_token: Option<String>,
 }

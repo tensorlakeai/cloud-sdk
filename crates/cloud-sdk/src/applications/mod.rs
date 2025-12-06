@@ -822,15 +822,15 @@ impl ApplicationsClient {
             models::ProgressUpdatesRequestMode::Paginated(_) => {
                 let bytes = resp.bytes().await?;
                 let jd = &mut serde_json::Deserializer::from_slice(&bytes);
-                let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
-                Ok(models::ProgressUpdatesResponse::Updates(response))
+                let response: models::ProgressUpdatesJson = serde_path_to_error::deserialize(jd)?;
+                Ok(models::ProgressUpdatesResponse::Json(response))
             }
             models::ProgressUpdatesRequestMode::FetchAll => {
                 let bytes = resp.bytes().await?;
                 let jd = &mut serde_json::Deserializer::from_slice(&bytes);
-                let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
+                let response: models::ProgressUpdatesJson = serde_path_to_error::deserialize(jd)?;
                 if response.next_token.is_none() {
-                    return Ok(models::ProgressUpdatesResponse::Updates(response));
+                    return Ok(models::ProgressUpdatesResponse::Json(response));
                 }
 
                 let mut all_updates = response.updates;
@@ -842,7 +842,8 @@ impl ApplicationsClient {
                     let resp = self.client.execute(req).await?;
                     let bytes = resp.bytes().await?;
                     let jd = &mut serde_json::Deserializer::from_slice(&bytes);
-                    let response: models::ProgressUpdates = serde_path_to_error::deserialize(jd)?;
+                    let response: models::ProgressUpdatesJson =
+                        serde_path_to_error::deserialize(jd)?;
                     all_updates.extend(response.updates);
                     if response.next_token.is_none() {
                         break;
@@ -851,8 +852,8 @@ impl ApplicationsClient {
                         models::ProgressUpdatesRequestMode::Paginated(response.next_token);
                 }
 
-                Ok(models::ProgressUpdatesResponse::Updates(
-                    models::ProgressUpdates {
+                Ok(models::ProgressUpdatesResponse::Json(
+                    models::ProgressUpdatesJson {
                         updates: all_updates,
                         next_token: None,
                     },
