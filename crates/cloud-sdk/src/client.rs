@@ -1,17 +1,24 @@
 //! HTTP client that interacts with the Tensorlake Cloud API.
+use futures::{Stream, StreamExt};
 use reqwest::{
-    Request, Response, StatusCode,
-    header::{HeaderMap, HeaderValue, InvalidHeaderValue},
+    Method, Request, Response, StatusCode,
+    header::{ACCEPT, HeaderMap, HeaderValue, InvalidHeaderValue},
 };
+use reqwest_eventsource::{CannotCloneRequestError, Error as SseError, Event, EventSource};
 use reqwest_middleware::{ClientBuilder as ReqwestClientBuilder, ClientWithMiddleware, Middleware};
-use std::{result::Result, sync::Arc};
+use serde::de::DeserializeOwned;
+use std::{pin::Pin, result::Result, sync::Arc};
 
 use crate::error::SdkError;
 
 /// HTTP client that interacts with the Tensorlake Cloud API.
 #[derive(Clone)]
 pub struct Client {
+    /// Base URL of the API, used to construct the full URL for each request.
     base_url: String,
+    /// Base client to construct more specialized clients, used to construct EventSource requests.
+    base_client: reqwest::Client,
+    /// Client with user provided middlewares. Used to perform regular HTTP requests.
     client: ClientWithMiddleware,
 }
 
@@ -92,7 +99,7 @@ impl ClientBuilder {
         }
 
         let base_client = new_base_client(&default_headers)?;
-        let mut builder = ReqwestClientBuilder::new(base_client);
+        let mut builder = ReqwestClientBuilder::new(base_client.clone());
 
         for middleware in &self.middlewares {
             builder = builder.with_arc(middleware.clone());
@@ -102,10 +109,13 @@ impl ClientBuilder {
 
         Ok(Client {
             base_url: self.base_url,
+            base_client,
             client,
         })
     }
 }
+
+type EventSourceStream<T> = Pin<Box<dyn Stream<Item = Result<T, SdkError>> + Send>>;
 
 impl Client {
     /// Execute an HTTP request.
@@ -122,38 +132,73 @@ impl Client {
         self.client.request(method, self.base_url.clone() + path)
     }
 
+    pub async fn build_event_source_request<T>(
+        &self,
+        path: &str,
+    ) -> Result<EventSourceStream<T>, CannotCloneRequestError>
+    where
+        T: DeserializeOwned,
+    {
+        let builder = self.base_client.get(self.base_url.clone() + path);
+        let req = EventSource::new(builder)?;
+
+        let stream = req
+            .take_while(|event| {
+                futures::future::ready(match event {
+                    Ok(Event::Message(_) | Event::Open) => true,
+                    Err(SseError::StreamEnded) => false,
+                    Err(_) => true,
+                })
+            })
+            .filter_map(move |event| {
+                async move {
+                    match event {
+                        Ok(Event::Open) => None, // keep-alive; nothing to emit
+                        Ok(Event::Message(msg)) => match serde_json::from_str::<T>(&msg.data) {
+                            Ok(evt) => Some(Ok(evt)),
+                            Err(error) => Some(Err(SdkError::Json(error))),
+                        },
+                        Err(SseError::StreamEnded) => None,
+                        Err(error) => Some(Err(SdkError::EventSourceError(Box::new(error)))),
+                    }
+                }
+            });
+        Ok(Box::pin(stream))
+    }
+
     pub fn build_multipart_request(
         &self,
         method: reqwest::Method,
         path: &str,
         form: reqwest::multipart::Form,
     ) -> Result<reqwest::Request, SdkError> {
-        self.client
-            .request(method, self.base_url.clone() + path)
+        self.request(method, path)
             .multipart(form)
             .build()
             .map_err(Into::into)
     }
 
-    pub fn build_json_request(
+    /// Helper function to build POST, PUT or PATCH requests with JSON body
+    pub fn build_post_json_request(
         &self,
         method: reqwest::Method,
         path: &str,
         body: &impl serde::Serialize,
     ) -> Result<reqwest::Request, SdkError> {
-        Ok(self
-            .client
-            .request(method, self.base_url.clone() + path)
-            .json(body)
-            .build()?)
+        Ok(self.request(method, path).json(body).build()?)
     }
 
-    pub fn base_request(
+    /// Helper function to build GET requests that return JSON responses
+    pub fn build_get_json_request(
         &self,
-        method: reqwest::Method,
         path: &str,
-    ) -> reqwest_middleware::RequestBuilder {
-        self.client.request(method, self.base_url.clone() + path)
+        query: Option<&[(&str, &str)]>,
+    ) -> Result<reqwest::Request, SdkError> {
+        let mut req_builder = self.request(Method::GET, path);
+        if let Some(query) = query {
+            req_builder = req_builder.query(query);
+        }
+        Ok(req_builder.header(ACCEPT, "application/json").build()?)
     }
 
     /// Helper function to handle HTTP responses and convert status codes to appropriate errors

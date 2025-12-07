@@ -757,8 +757,6 @@ pub struct InvokeApplicationRequest {
     #[builder(setter(into))]
     pub application: String,
     pub body: serde_json::Value,
-    #[builder(default)]
-    pub stream: bool,
 }
 
 impl InvokeApplicationRequest {
@@ -888,7 +886,6 @@ pub struct ProgressUpdatesRequest {
 #[derive(Clone, Debug)]
 pub enum ProgressUpdatesRequestMode {
     Paginated(Option<String>),
-    FetchAll,
     Stream,
 }
 
@@ -910,8 +907,7 @@ pub enum ProgressUpdatesResponse {
 
 impl ProgressUpdatesResponse {
     /// Returns the JSON object containing progress updates.
-    /// Use this function only if the `ProgressUpdatesRequestMode` was set to `ProgressUpdatesRequestMode::Paginated(_)`
-    /// or `ProgressUpdatesRequestMode::FetchAll`.
+    /// Use this function only if the `ProgressUpdatesRequestMode` was set to `ProgressUpdatesRequestMode::Paginated(_)`.
     ///
     /// This function panics if the response is a `ProgressUpdatesResponse::Stream`.
     pub fn json(&self) -> &ProgressUpdatesJson {
@@ -927,7 +923,7 @@ impl ProgressUpdatesResponse {
     /// Use this function only if the `ProgressUpdatesRequestMode` was set to `ProgressUpdatesRequestMode::Stream`.
     ///
     /// This function panics if the response is a `ProgressUpdatesResponse::Json`.
-    pub fn stream(&self) -> &ProgressUpdatesStream {
+    pub fn stream(&mut self) -> &mut ProgressUpdatesStream {
         match self {
             ProgressUpdatesResponse::Stream(stream) => stream,
             _ => panic!(

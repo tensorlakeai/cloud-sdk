@@ -30,16 +30,14 @@
 //! images_client.build_image(build_request);
 //! ```
 
-use std::{io::Error, time::Duration};
+use std::{pin::Pin, time::Duration};
 
-use crate::{client::Client, error::SdkError, event_source::SseDecoder};
-use futures::{TryStreamExt, stream::Stream};
+use crate::{client::Client, error::SdkError};
+use futures::stream::Stream;
 use reqwest::{
     Method,
-    header::ACCEPT,
     multipart::{Form, Part},
 };
-use tokio_util::{codec::FramedRead, io::StreamReader};
 
 pub mod error;
 pub mod models;
@@ -402,21 +400,15 @@ impl ImagesClient {
     pub async fn stream_logs(
         &self,
         request: &models::StreamLogsRequest,
-    ) -> Result<impl Stream<Item = Result<LogEntry, SdkError>>, SdkError> {
+    ) -> Result<ImageBuildLogStream, SdkError> {
         let uri_str = format!("/images/v2/builds/{}/logs", request.build_id);
-        let req = self
+
+        let stream = self
             .client
-            .request(Method::GET, &uri_str)
-            .header(ACCEPT, "text/event-stream")
-            .build()?;
-
-        let response = self.client.execute(req).await?;
-
-        let decoder: SseDecoder<LogEntry> = SseDecoder::new();
-        let stream = response.bytes_stream();
-
-        let frame = FramedRead::new(StreamReader::new(stream.map_err(Error::other)), decoder);
-
-        Ok(frame.into_stream())
+            .build_event_source_request::<LogEntry>(&uri_str)
+            .await?;
+        Ok(stream)
     }
 }
+
+type ImageBuildLogStream = Pin<Box<dyn Stream<Item = Result<LogEntry, SdkError>> + Send>>;

@@ -19,6 +19,7 @@
 //! export TENSORLAKE_NAMESPACE=<namespace>
 //! export TENSORLAKE_APPLICATION=<application-name>
 //! export TENSORLAKE_REQUEST_ID=<request-id>
+//! export TENSORLAKE_REQUEST_MODE=<polling|streaming>
 //!
 //! cargo run --example poll_progress_updates -p tensorlake-cloud-sdk
 //! ```
@@ -29,12 +30,15 @@
 //! TENSORLAKE_API_URL=<url> TENSORLAKE_API_KEY=<key> \
 //! TENSORLAKE_NAMESPACE=<ns> TENSORLAKE_APPLICATION=<app> \
 //! TENSORLAKE_REQUEST_ID=<req-id> \
+//! TENSORLAKE_REQUEST_MODE=<polling|streaming> \
 //! cargo run --example poll_progress_updates -p tensorlake-cloud-sdk
 //! ```
 
+use futures::StreamExt;
 use std::env;
 use std::time::Duration;
 use tensorlake_cloud_sdk::Sdk;
+use tensorlake_cloud_sdk::applications::ApplicationsClient;
 use tensorlake_cloud_sdk::applications::models::{
     ProgressUpdatesRequest, ProgressUpdatesRequestMode,
 };
@@ -53,10 +57,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request_id = env::var("TENSORLAKE_REQUEST_ID")
         .expect("TENSORLAKE_REQUEST_ID environment variable not set");
 
+    let request_mode = env::var("TENSORLAKE_REQUEST_MODE").ok();
+
     // Create SDK instance
     let sdk = Sdk::new(&api_url, &api_key)?;
-    let apps_client = sdk.applications();
+    let client = sdk.applications();
 
+    if request_mode.is_some_and(|mode| mode == "streaming") {
+        stream_updates(&client, &namespace, &application, &request_id).await
+    } else {
+        poll_for_updates(&client, &namespace, &application, &request_id).await
+    }
+}
+
+async fn poll_for_updates(
+    client: &ApplicationsClient,
+    namespace: &str,
+    application: &str,
+    request_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Initialize next_token for pagination
     let mut next_token: Option<String> = None;
 
@@ -64,14 +83,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==> Polling for progress updates...");
     'outer: loop {
         let request = ProgressUpdatesRequest::builder()
-            .namespace(&namespace)
-            .application(&application)
-            .request_id(&request_id)
+            .namespace(namespace)
+            .application(application)
+            .request_id(request_id)
             .mode(ProgressUpdatesRequestMode::Paginated(next_token.clone()))
             .build()
             .unwrap();
 
-        let response = apps_client.get_progress_updates(&request).await?;
+        let response = client.get_progress_updates(&request).await?;
         let progress_updates = response.json();
 
         // If we have updates, print them and update next_token
@@ -92,6 +111,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
     println!("==> Polling complete.");
+
+    Ok(())
+}
+
+async fn stream_updates(
+    client: &ApplicationsClient,
+    namespace: &str,
+    application: &str,
+    request_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let request = ProgressUpdatesRequest::builder()
+        .namespace(namespace)
+        .application(application)
+        .request_id(request_id)
+        .mode(ProgressUpdatesRequestMode::Stream)
+        .build()
+        .unwrap();
+
+    println!("==> Streaming progress updates...");
+    let mut response = client.get_progress_updates(&request).await?;
+    let progress_updates = response.stream();
+
+    while let Some(update) = progress_updates.next().await {
+        let update = update?;
+        println!("{:?}", update);
+        // Check if this is a RequestFinished event
+        if update.is_terminal() {
+            break;
+        }
+    }
+    println!("==> Streaming complete.");
 
     Ok(())
 }
