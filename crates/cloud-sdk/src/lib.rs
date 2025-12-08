@@ -66,7 +66,6 @@
 
 pub mod applications;
 pub mod error;
-pub mod event_source;
 pub mod images;
 pub mod secrets;
 use applications::*;

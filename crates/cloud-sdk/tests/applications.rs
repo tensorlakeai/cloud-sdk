@@ -178,7 +178,7 @@ async fn test_applications_operations() {
 
     // Create an application
     let upsert_request = UpsertApplicationRequest::builder()
-        .namespace(project_id.clone())
+        .namespace(&project_id)
         .application_manifest(app_manifest)
         .code_zip(zip_data)
         .build()
@@ -191,8 +191,8 @@ async fn test_applications_operations() {
 
     // List applications
     let list_request = ListApplicationsRequest::builder()
-        .namespace(project_id.clone())
-        .limit(10)
+        .namespace(&project_id)
+        .limit(100)
         .build()
         .unwrap();
 
@@ -210,8 +210,8 @@ async fn test_applications_operations() {
 
     // Get application
     let get_request = GetApplicationRequest::builder()
-        .namespace(project_id.clone())
-        .application(application_name.to_string())
+        .namespace(&project_id)
+        .application(&application_name)
         .build()
         .unwrap();
 
@@ -224,8 +224,8 @@ async fn test_applications_operations() {
 
     // Invoke application
     let invoke_request = InvokeApplicationRequest::builder()
-        .namespace(project_id.clone())
-        .application(application_name.to_string())
+        .namespace(&project_id)
+        .application(&application_name)
         .body(serde_json::json!({"input_text": "hello world"}))
         .build()
         .unwrap();
@@ -242,19 +242,10 @@ async fn test_applications_operations() {
 
     assert!(!request_id.is_empty());
 
-    // Get output for request
-    // Placeholder: assume get_request method exists
-
-    // Check output for function
-    // Placeholder
-
-    // Get output for function
-    // Placeholder
-
     // List requests
     let list_requests_request = ListRequestsRequest::builder()
-        .namespace(project_id)
-        .application(application_name.to_string())
+        .namespace(&project_id)
+        .application(&application_name)
         .limit(10)
         .build()
         .unwrap();
@@ -271,4 +262,15 @@ async fn test_applications_operations() {
             .map(|r| r.id.clone())
             .any(|r| r == request_id)
     );
+
+    let delete_app = DeleteApplicationRequest::builder()
+        .namespace(&project_id)
+        .application(&application_name)
+        .build()
+        .unwrap();
+
+    apps_client
+        .delete(&delete_app)
+        .await
+        .expect("Delete should succeed");
 }
