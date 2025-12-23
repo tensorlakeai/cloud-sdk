@@ -229,9 +229,9 @@ pub struct ApplicationFunction {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<Vec<ParameterMetadata>>,
-    pub placement_constraints: Box<PlacementConstraints>,
-    pub resources: Box<FunctionResources>,
-    pub retry_policy: Box<NodeRetryPolicy>,
+    pub placement_constraints: PlacementConstraints,
+    pub resources: FunctionResources,
+    pub retry_policy: NodeRetryPolicy,
     pub return_type: Option<serde_json::Value>,
     pub secret_names: Vec<String>,
     pub timeout_sec: i32,
