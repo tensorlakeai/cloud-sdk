@@ -203,8 +203,8 @@ pub struct Application {
     pub tags: HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tombstoned: Option<bool>,
-    #[serde(skip_serializing)]
-    pub state: ApplicationState,
+    #[serde(skip_serializing, default)]
+    pub state: Option<ApplicationState>,
     pub version: String,
 }
 
