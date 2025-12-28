@@ -199,6 +199,7 @@ pub struct Application {
     pub entrypoint: EntryPointManifest,
     pub functions: HashMap<String, ApplicationFunction>,
     pub name: String,
+    #[serde(skip_deserializing, default)]
     pub namespace: String,
     pub tags: HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
