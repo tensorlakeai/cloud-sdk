@@ -542,6 +542,8 @@ pub struct RequestProgressUpdated {
     pub total: Option<FloatKind>,
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -550,6 +552,8 @@ pub struct RequestCreatedEvent {
     pub application_name: String,
     pub application_version: String,
     pub request_id: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -560,6 +564,8 @@ pub struct RequestFinishedEvent {
     pub request_id: String,
     #[serde(default)]
     pub outcome: RequestOutcome,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -568,6 +574,8 @@ pub struct RequestStartedEvent {
     pub application_name: String,
     pub application_version: String,
     pub request_id: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -578,6 +586,8 @@ pub struct FunctionRunCreated {
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -590,6 +600,8 @@ pub struct FunctionRunAssigned {
     pub function_run_id: String,
     pub allocation_id: String,
     pub executor_id: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -610,6 +622,8 @@ pub struct FunctionRunCompleted {
     pub function_run_id: String,
     pub allocation_id: String,
     pub outcome: FunctionRunOutcomeSummary,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -620,6 +634,8 @@ pub struct FunctionRunMatchedCache {
     pub request_id: String,
     pub function_name: String,
     pub function_run_id: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Builder, Debug)]
