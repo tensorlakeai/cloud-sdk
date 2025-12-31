@@ -8,6 +8,7 @@ edition = "2024"
 
 [dependencies]
 bytes = { workspace = true }
+chrono = { workspace = true }
 derive_builder = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use futures::Stream;
 use reqwest::header::HeaderValue;
@@ -544,7 +545,7 @@ pub struct RequestProgressUpdated {
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -554,7 +555,7 @@ pub struct RequestCreatedEvent {
     pub application_version: String,
     pub request_id: String,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -566,7 +567,7 @@ pub struct RequestFinishedEvent {
     #[serde(default)]
     pub outcome: RequestOutcome,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -576,7 +577,7 @@ pub struct RequestStartedEvent {
     pub application_version: String,
     pub request_id: String,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -588,7 +589,7 @@ pub struct FunctionRunCreated {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -602,7 +603,7 @@ pub struct FunctionRunAssigned {
     pub allocation_id: String,
     pub executor_id: String,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -624,7 +625,7 @@ pub struct FunctionRunCompleted {
     pub allocation_id: String,
     pub outcome: FunctionRunOutcomeSummary,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -636,7 +637,7 @@ pub struct FunctionRunMatchedCache {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: i64,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Builder, Debug)]
