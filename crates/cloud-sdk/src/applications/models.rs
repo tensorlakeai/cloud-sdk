@@ -459,6 +459,15 @@ pub struct EventsResponse {
     pub next_token: Option<String>,
 }
 
+pub trait RequestEventMetadata {
+    fn namespace(&self) -> &str;
+    fn application_name(&self) -> &str;
+    fn application_version(&self) -> &str;
+    fn request_id(&self) -> &str;
+    fn created_at(&self) -> Option<&DateTime<Utc>>;
+    fn set_created_at(&mut self, date: DateTime<Utc>);
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
@@ -466,7 +475,6 @@ pub enum RequestStateChangeEvent {
     FunctionRunAssigned(FunctionRunAssigned),
     FunctionRunCompleted(FunctionRunCompleted),
     FunctionRunMatchedCache(FunctionRunMatchedCache),
-    RequestCreated(RequestCreatedEvent),
     RequestProgressUpdated(RequestProgressUpdated),
     RequestFinished(RequestFinishedEvent),
 }
@@ -479,7 +487,6 @@ impl RequestStateChangeEvent {
             RequestStateChangeEvent::FunctionRunAssigned(_) => "FunctionRunAssigned",
             RequestStateChangeEvent::FunctionRunCompleted(_) => "FunctionRunCompleted",
             RequestStateChangeEvent::FunctionRunMatchedCache(_) => "FunctionRunMatchedCache",
-            RequestStateChangeEvent::RequestCreated(_) => "RequestCreated",
             RequestStateChangeEvent::RequestProgressUpdated(_) => "RequestProgressUpdated",
             RequestStateChangeEvent::RequestFinished(_) => "RequestFinished",
         }
@@ -487,6 +494,92 @@ impl RequestStateChangeEvent {
 
     pub fn is_terminal(&self) -> bool {
         matches!(self, RequestStateChangeEvent::RequestFinished(_))
+    }
+
+    pub fn namespace(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.namespace(),
+            RequestStateChangeEvent::RequestFinished(event) => event.namespace(),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.namespace(),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.namespace(),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.namespace(),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.namespace(),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.namespace(),
+        }
+    }
+
+    pub fn application_name(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.application_name(),
+            RequestStateChangeEvent::RequestFinished(event) => event.application_name(),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.application_name(),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.application_name(),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.application_name(),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.application_name(),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.application_name(),
+        }
+    }
+
+    pub fn application_version(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.application_version(),
+            RequestStateChangeEvent::RequestFinished(event) => event.application_version(),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.application_version(),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.application_version(),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.application_version(),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.application_version(),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.application_version(),
+        }
+    }
+
+    pub fn request_id(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.request_id(),
+            RequestStateChangeEvent::RequestFinished(event) => event.request_id(),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.request_id(),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.request_id(),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.request_id(),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.request_id(),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.request_id(),
+        }
+    }
+
+    pub fn created_at(&self) -> Option<&DateTime<Utc>> {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.created_at(),
+            RequestStateChangeEvent::RequestFinished(event) => event.created_at(),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.created_at(),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.created_at(),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.created_at(),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.created_at(),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.created_at(),
+        }
+    }
+
+    pub fn set_created_at(&mut self, date: DateTime<Utc>) {
+        match self {
+            RequestStateChangeEvent::RequestStarted(event) => event.set_created_at(date),
+            RequestStateChangeEvent::RequestFinished(event) => event.set_created_at(date),
+            RequestStateChangeEvent::FunctionRunCreated(event) => event.set_created_at(date),
+            RequestStateChangeEvent::FunctionRunAssigned(event) => event.set_created_at(date),
+            RequestStateChangeEvent::FunctionRunCompleted(event) => event.set_created_at(date),
+            RequestStateChangeEvent::FunctionRunMatchedCache(event) => event.set_created_at(date),
+            RequestStateChangeEvent::RequestProgressUpdated(event) => event.set_created_at(date),
+        }
+    }
+
+    pub fn message(&self) -> &str {
+        match self {
+            RequestStateChangeEvent::RequestStarted(_) => "Request Started",
+            RequestStateChangeEvent::RequestFinished(_) => "Request Finished",
+            RequestStateChangeEvent::FunctionRunCreated(_) => "Function Run Created",
+            RequestStateChangeEvent::FunctionRunAssigned(_) => "Function Run Assigned",
+            RequestStateChangeEvent::FunctionRunCompleted(_) => "Function Run Completed",
+            RequestStateChangeEvent::RequestProgressUpdated(_) => "Request Progress Updated",
+            RequestStateChangeEvent::FunctionRunMatchedCache(_) => {
+                "Function Run Matched a Cached output"
+            }
+        }
     }
 }
 
@@ -533,6 +626,12 @@ impl FloatKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct RequestProgressUpdated {
+    #[serde(default)]
+    pub namespace: String,
+    #[serde(default)]
+    pub application_name: String,
+    #[serde(default)]
+    pub application_version: String,
     pub request_id: String,
     #[serde(default)]
     pub function_name: String,
@@ -545,17 +644,33 @@ pub struct RequestProgressUpdated {
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RequestCreatedEvent {
-    pub namespace: String,
-    pub application_name: String,
-    pub application_version: String,
-    pub request_id: String,
-    #[serde(default)]
-    pub created_at: DateTime<Utc>,
+impl RequestEventMetadata for RequestProgressUpdated {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -567,7 +682,33 @@ pub struct RequestFinishedEvent {
     #[serde(default)]
     pub outcome: RequestOutcome,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for RequestFinishedEvent {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -577,7 +718,33 @@ pub struct RequestStartedEvent {
     pub application_version: String,
     pub request_id: String,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for RequestStartedEvent {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -589,7 +756,33 @@ pub struct FunctionRunCreated {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for FunctionRunCreated {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -603,7 +796,33 @@ pub struct FunctionRunAssigned {
     pub allocation_id: String,
     pub executor_id: String,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for FunctionRunAssigned {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -625,7 +844,33 @@ pub struct FunctionRunCompleted {
     pub allocation_id: String,
     pub outcome: FunctionRunOutcomeSummary,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for FunctionRunCompleted {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -637,7 +882,33 @@ pub struct FunctionRunMatchedCache {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: DateTime<Utc>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+impl RequestEventMetadata for FunctionRunMatchedCache {
+    fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    fn application_name(&self) -> &str {
+        &self.application_name
+    }
+
+    fn application_version(&self) -> &str {
+        &self.application_version
+    }
+
+    fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    fn created_at(&self) -> Option<&DateTime<Utc>> {
+        self.created_at.as_ref()
+    }
+
+    fn set_created_at(&mut self, date: DateTime<Utc>) {
+        self.created_at = Some(date);
+    }
 }
 
 #[derive(Builder, Debug)]
