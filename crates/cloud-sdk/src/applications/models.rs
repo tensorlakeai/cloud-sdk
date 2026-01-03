@@ -2,12 +2,42 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use futures::Stream;
 use reqwest::header::HeaderValue;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json;
 use std::{collections::HashMap, pin::Pin};
 use uuid::Uuid;
 
 use crate::error::SdkError;
+
+/// A custom DateTime<Utc> type that handles RFC3339 timestamps with missing 'Z' timezone indicator.
+/// When deserializing, if the timestamp doesn't end with 'Z', it's automatically appended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
+pub struct Rfc3339DateTime(DateTime<Utc>);
+
+impl<'de> Deserialize<'de> for Rfc3339DateTime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut s = String::deserialize(deserializer)?;
+        if !s.ends_with("Z") && !s.ends_with("+00:00") {
+            s.push('Z');
+        }
+
+        DateTime::parse_from_rfc3339(&s)
+            .map(|dt| Rfc3339DateTime(dt.with_timezone(&Utc)))
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl std::ops::Deref for Rfc3339DateTime {
+    type Target = DateTime<Utc>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct ApplicationManifest {
@@ -644,7 +674,7 @@ pub struct RequestProgressUpdated {
     #[serde(default)]
     pub attributes: Option<serde_json::Value>,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for RequestProgressUpdated {
@@ -665,11 +695,11 @@ impl RequestEventMetadata for RequestProgressUpdated {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -682,7 +712,7 @@ pub struct RequestFinishedEvent {
     #[serde(default)]
     pub outcome: RequestOutcome,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for RequestFinishedEvent {
@@ -703,11 +733,11 @@ impl RequestEventMetadata for RequestFinishedEvent {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -718,7 +748,7 @@ pub struct RequestStartedEvent {
     pub application_version: String,
     pub request_id: String,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for RequestStartedEvent {
@@ -739,11 +769,11 @@ impl RequestEventMetadata for RequestStartedEvent {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -756,7 +786,7 @@ pub struct FunctionRunCreated {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for FunctionRunCreated {
@@ -777,11 +807,11 @@ impl RequestEventMetadata for FunctionRunCreated {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -796,7 +826,7 @@ pub struct FunctionRunAssigned {
     pub allocation_id: String,
     pub executor_id: String,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for FunctionRunAssigned {
@@ -817,11 +847,11 @@ impl RequestEventMetadata for FunctionRunAssigned {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -844,7 +874,7 @@ pub struct FunctionRunCompleted {
     pub allocation_id: String,
     pub outcome: FunctionRunOutcomeSummary,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for FunctionRunCompleted {
@@ -865,11 +895,11 @@ impl RequestEventMetadata for FunctionRunCompleted {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -882,7 +912,7 @@ pub struct FunctionRunMatchedCache {
     pub function_name: String,
     pub function_run_id: String,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: Option<Rfc3339DateTime>,
 }
 
 impl RequestEventMetadata for FunctionRunMatchedCache {
@@ -903,11 +933,11 @@ impl RequestEventMetadata for FunctionRunMatchedCache {
     }
 
     fn created_at(&self) -> Option<&DateTime<Utc>> {
-        self.created_at.as_ref()
+        self.created_at.as_ref().map(|rfc| &rfc.0)
     }
 
     fn set_created_at(&mut self, date: DateTime<Utc>) {
-        self.created_at = Some(date);
+        self.created_at = Some(Rfc3339DateTime(date));
     }
 }
 
@@ -1226,4 +1256,103 @@ impl ProgressUpdatesResponse {
 pub struct ProgressUpdatesJson {
     pub updates: Vec<RequestStateChangeEvent>,
     pub next_token: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Datelike;
+    use serde_json::json;
+
+    #[test]
+    fn test_rfc3339_datetime_with_z() {
+        let json = json!("2024-01-15T10:30:45Z");
+        let result: Result<Rfc3339DateTime, _> = serde_json::from_value(json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rfc3339_datetime_without_z() {
+        let json = json!("2024-01-15T10:30:45");
+        let result: Result<Rfc3339DateTime, _> = serde_json::from_value(json);
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        // Verify it was parsed correctly as UTC
+        assert_eq!(dt.0.year(), 2024);
+        assert_eq!(dt.0.month(), 1);
+        assert_eq!(dt.0.day(), 15);
+    }
+
+    #[test]
+    fn test_rfc3339_datetime_with_timezone_offset() {
+        let json = json!("2024-01-15T10:30:45+00:00");
+        let result: Result<Rfc3339DateTime, _> = serde_json::from_value(json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_request_started_event_deserialization() {
+        let json = json!({
+            "namespace": "test",
+            "application_name": "app",
+            "application_version": "1.0",
+            "request_id": "req-123",
+            "created_at": "2024-01-15T10:30:45"
+        });
+        let result: Result<RequestStartedEvent, _> = serde_json::from_value(json);
+        assert!(result.is_ok());
+        let event = result.unwrap();
+        assert!(event.created_at.is_some());
+    }
+
+    #[test]
+    fn test_rfc3339_datetime_serialization() {
+        // Test that serializing Rfc3339DateTime produces a plain string, not a nested struct
+        let now = chrono::Utc::now();
+        let rfc_dt = Rfc3339DateTime(now);
+        let serialized = serde_json::to_value(&rfc_dt).unwrap();
+
+        // Should be a string, not an object
+        assert!(
+            serialized.is_string(),
+            "Expected serialized DateTime to be a string, got: {:?}",
+            serialized
+        );
+
+        // Should contain 'Z' at the end
+        let date_str = serialized.as_str().unwrap();
+        assert!(
+            date_str.ends_with('Z'),
+            "Expected 'Z' at end of serialized DateTime"
+        );
+    }
+
+    #[test]
+    fn test_request_started_event_serialization() {
+        // Test that serializing an event doesn't nest the created_at field
+        let event = RequestStartedEvent {
+            namespace: "test".to_string(),
+            application_name: "app".to_string(),
+            application_version: "1.0".to_string(),
+            request_id: "req-123".to_string(),
+            created_at: Some(Rfc3339DateTime(Utc::now())),
+        };
+
+        let serialized = serde_json::to_value(&event).unwrap();
+        let obj = serialized.as_object().unwrap();
+
+        // created_at should be a string directly, not an object
+        let created_at = &obj["created_at"];
+        assert!(
+            created_at.is_string(),
+            "Expected created_at to be a string, got: {:?}",
+            created_at
+        );
+
+        let date_str = created_at.as_str().unwrap();
+        assert!(
+            date_str.ends_with('Z'),
+            "Expected 'Z' at end of created_at value"
+        );
+    }
 }
