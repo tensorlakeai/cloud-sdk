@@ -321,7 +321,16 @@ impl Image {
             lines.push(render_build_operation(op));
         }
 
-        lines.push(format!("RUN pip install tensorlake=={}", sdk_version));
+        if sdk_version.starts_with("~=")
+            || sdk_version.starts_with(">=")
+            || sdk_version.starts_with("<=")
+            || sdk_version.starts_with("!=")
+            || sdk_version.starts_with("==")
+        {
+            lines.push(format!("RUN pip install tensorlake{}", sdk_version));
+        } else {
+            lines.push(format!("RUN pip install tensorlake=={}", sdk_version));
+        }
 
         lines.join("\n")
     }
