@@ -4,7 +4,7 @@ use futures::Stream;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json;
-use std::{collections::HashMap, pin::Pin};
+use std::{collections::HashMap, fmt::Display, pin::Pin};
 use uuid::Uuid;
 
 use crate::error::SdkError;
@@ -14,6 +14,24 @@ use crate::error::SdkError;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Rfc3339DateTime(DateTime<Utc>);
+
+impl Rfc3339DateTime {
+    pub fn now() -> Self {
+        Self(Utc::now())
+    }
+}
+
+impl From<DateTime<Utc>> for Rfc3339DateTime {
+    fn from(value: DateTime<Utc>) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for Rfc3339DateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_rfc3339())
+    }
+}
 
 impl<'de> Deserialize<'de> for Rfc3339DateTime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
