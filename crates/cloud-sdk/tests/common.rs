@@ -39,7 +39,7 @@ pub async fn build_test_image(
         .application_name(application_name)
         .application_version(application_version)
         .function_name(func_name)
-        .sdk_version("0.2.75")
+        .sdk_version("~=0.2")
         .build()
         .unwrap();
 

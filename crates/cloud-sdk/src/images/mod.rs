@@ -24,7 +24,7 @@
 //!     .application_name("my-app")
 //!     .application_version("1.0.0")
 //!     .function_name("main")
-//!     .sdk_version("0.3.12")
+//!     .sdk_version("0.2")
 //!     .build().unwrap();
 //!
 //! images_client.build_image(build_request);
@@ -113,7 +113,7 @@ impl ImagesClient {
     ///         .application_name("my-app")
     ///         .application_version("1.0.0")
     ///         .function_name("main")
-    ///         .sdk_version("0.2.75")
+    ///         .sdk_version("0.2")
     ///         .build()?;
     ///
     ///     images_client.build_image(request).await?;
