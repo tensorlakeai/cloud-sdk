@@ -674,15 +674,19 @@ impl FloatKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub struct RequestProgressUpdated {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub namespace: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub application_name: String,
     #[serde(default)]
     pub application_version: String,
     pub request_id: String,
     #[serde(default)]
     pub function_name: String,
+    #[serde(default)]
+    pub function_run_id: String,
+    #[serde(default)]
+    pub allocation_id: String,
     #[serde(default)]
     pub message: StringKind,
     #[serde(default)]
