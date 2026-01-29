@@ -564,6 +564,7 @@ pub enum RequestStateChangeEvent {
 }
 
 impl RequestStateChangeEvent {
+    #[allow(deprecated)]
     pub fn as_str(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(_) => "RequestStarted",
@@ -583,6 +584,7 @@ impl RequestStateChangeEvent {
         matches!(self, RequestStateChangeEvent::RequestFinished(_))
     }
 
+    #[allow(deprecated)]
     pub fn namespace(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.namespace(),
@@ -597,6 +599,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn application_name(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.application_name(),
@@ -611,6 +614,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn application_version(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.application_version(),
@@ -625,6 +629,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn request_id(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.request_id(),
@@ -639,6 +644,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn created_at(&self) -> Option<&DateTime<Utc>> {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.created_at(),
@@ -653,6 +659,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn set_created_at(&mut self, date: DateTime<Utc>) {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.set_created_at(date),
@@ -667,6 +674,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn message(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(_) => "Request Started",
