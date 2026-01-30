@@ -9,6 +9,7 @@ edition = "2024"
 [dependencies]
 bytes = { workspace = true }
 chrono = { workspace = true }
+utoipa = { workspace = true, optional = true }
 derive_builder = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
@@ -41,6 +42,7 @@ too_many_arguments = "allow"
 
 [features]
 integration-tests = []
+openapi = ["utoipa"]
 
 [[example]]
 name = "poll_progress_updates"

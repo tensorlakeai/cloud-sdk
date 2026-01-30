@@ -57,6 +57,30 @@ impl std::ops::Deref for Rfc3339DateTime {
     }
 }
 
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for Rfc3339DateTime {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        utoipa::openapi::RefOr::T(utoipa::openapi::Schema::Object(
+            utoipa::openapi::ObjectBuilder::new()
+                .schema_type(utoipa::openapi::schema::SchemaType::Type(
+                    utoipa::openapi::schema::Type::String,
+                ))
+                .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+                    utoipa::openapi::KnownFormat::DateTime,
+                )))
+                .description(Some("RFC 3339 datetime"))
+                .build(),
+        ))
+    }
+}
+
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for Rfc3339DateTime {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Rfc3339DateTime")
+    }
+}
+
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, Builder)]
 pub struct ApplicationManifest {
     #[builder(setter(into))]
@@ -354,6 +378,7 @@ pub struct FunctionRun {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum FunctionRunOutcome {
     #[serde(alias = "Unknown")]
@@ -449,6 +474,7 @@ pub struct RequestError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum RequestFailureReason {
     #[serde(alias = "unknown")]
     Unknown,
@@ -471,6 +497,7 @@ pub enum RequestFailureReason {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum RequestOutcome {
     #[default]
@@ -517,6 +544,7 @@ pub trait RequestEventMetadata {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum RequestStateChangeEvent {
     RequestStarted(RequestStartedEvent),
     FunctionRunCreated(FunctionRunCreated),
@@ -530,12 +558,13 @@ pub enum RequestStateChangeEvent {
     RequestProgressUpdated(RequestProgressUpdated),
     RequestFinished(RequestFinishedEvent),
     // Legacy variants for backward compatibility
-    /// @deprecated Use AllocationCreated instead
     #[serde(alias = "FunctionRunAssigned")]
+    #[deprecated(note = "Use AllocationCreated instead")]
     FunctionRunAssigned(AllocationCreated),
 }
 
 impl RequestStateChangeEvent {
+    #[allow(deprecated)]
     pub fn as_str(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(_) => "RequestStarted",
@@ -555,6 +584,7 @@ impl RequestStateChangeEvent {
         matches!(self, RequestStateChangeEvent::RequestFinished(_))
     }
 
+    #[allow(deprecated)]
     pub fn namespace(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.namespace(),
@@ -569,6 +599,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn application_name(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.application_name(),
@@ -583,6 +614,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn application_version(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.application_version(),
@@ -597,6 +629,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn request_id(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.request_id(),
@@ -611,6 +644,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn created_at(&self) -> Option<&DateTime<Utc>> {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.created_at(),
@@ -625,6 +659,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn set_created_at(&mut self, date: DateTime<Utc>) {
         match self {
             RequestStateChangeEvent::RequestStarted(event) => event.set_created_at(date),
@@ -639,6 +674,7 @@ impl RequestStateChangeEvent {
         }
     }
 
+    #[allow(deprecated)]
     pub fn message(&self) -> &str {
         match self {
             RequestStateChangeEvent::RequestStarted(_) => "Request Started",
@@ -658,6 +694,7 @@ impl RequestStateChangeEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(untagged)]
 pub enum StringKind {
     String(String),
@@ -680,6 +717,7 @@ impl Default for StringKind {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(untagged)]
 pub enum FloatKind {
     Float(f64),
@@ -698,6 +736,7 @@ impl FloatKind {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[non_exhaustive]
 pub struct RequestProgressUpdated {
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -752,6 +791,7 @@ impl RequestEventMetadata for RequestProgressUpdated {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RequestFinishedEvent {
     pub namespace: String,
     pub application_name: String,
@@ -790,6 +830,7 @@ impl RequestEventMetadata for RequestFinishedEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RequestStartedEvent {
     pub namespace: String,
     pub application_name: String,
@@ -826,6 +867,7 @@ impl RequestEventMetadata for RequestStartedEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct FunctionRunCreated {
     pub namespace: String,
     pub application_name: String,
@@ -865,6 +907,7 @@ impl RequestEventMetadata for FunctionRunCreated {
 
 /// Event emitted when an allocation (execution attempt) is created and assigned to an executor
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AllocationCreated {
     pub namespace: String,
     pub application_name: String,
@@ -908,6 +951,7 @@ impl RequestEventMetadata for AllocationCreated {
 pub type FunctionRunAssigned = AllocationCreated;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum FunctionRunOutcomeSummary {
     Unknown,
@@ -921,6 +965,7 @@ pub enum FunctionRunOutcomeSummary {
 /// this event included `allocation_id`. For backward compatibility, `allocation_id`
 /// is kept as an optional field. New server versions will not include it.
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct FunctionRunCompleted {
     pub namespace: String,
     pub application_name: String,
@@ -965,6 +1010,7 @@ impl RequestEventMetadata for FunctionRunCompleted {
 
 /// Event emitted when an allocation (execution attempt) completes with an outcome
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AllocationCompleted {
     pub namespace: String,
     pub application_name: String,
@@ -1005,6 +1051,7 @@ impl RequestEventMetadata for AllocationCompleted {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct FunctionRunMatchedCache {
     pub namespace: String,
     pub application_name: String,
