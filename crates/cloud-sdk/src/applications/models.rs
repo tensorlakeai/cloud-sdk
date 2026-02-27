@@ -258,7 +258,7 @@ pub struct Allocation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_duration_ms: Option<i64>,
     pub executor_id: String,
-    pub function_executor_id: String,
+    pub container_id: String,
     pub function_name: String,
     pub id: String,
     pub outcome: FunctionRunOutcome,
