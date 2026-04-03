@@ -4,6 +4,7 @@ use reqwest::{
     Method, Request, Response, StatusCode,
     header::{ACCEPT, HeaderMap, HeaderValue, InvalidHeaderValue},
 };
+use reqwest12 as reqwest_eventsource_client;
 use reqwest_eventsource::{CannotCloneRequestError, Error as SseError, Event, EventSource};
 use reqwest_middleware::{ClientBuilder as ReqwestClientBuilder, ClientWithMiddleware, Middleware};
 use serde::de::DeserializeOwned;
@@ -17,7 +18,7 @@ pub struct Client {
     /// Base URL of the API, used to construct the full URL for each request.
     base_url: String,
     /// Base client to construct more specialized clients, used to construct EventSource requests.
-    base_client: reqwest::Client,
+    base_client: reqwest_eventsource_client::Client,
     /// Client with user provided middlewares. Used to perform regular HTTP requests.
     client: ClientWithMiddleware,
 }
@@ -98,8 +99,9 @@ impl ClientBuilder {
             default_headers.insert("X-Tensorlake-Project-Id", str_to_header_value(project_id)?);
         }
 
-        let base_client = new_base_client(&default_headers)?;
-        let mut builder = ReqwestClientBuilder::new(base_client.clone());
+        let http_client = new_base_client(&default_headers)?;
+        let base_client = new_event_source_client(&default_headers)?;
+        let mut builder = ReqwestClientBuilder::new(http_client.clone());
 
         for middleware in &self.middlewares {
             builder = builder.with_arc(middleware.clone());
@@ -265,5 +267,19 @@ fn new_base_client(headers: &HeaderMap) -> Result<reqwest::Client, SdkError> {
         ))
         .default_headers(headers.clone())
         .build()?;
+    Ok(client)
+}
+
+fn new_event_source_client(
+    headers: &HeaderMap,
+) -> Result<reqwest_eventsource_client::Client, SdkError> {
+    let client = reqwest_eventsource_client::Client::builder()
+        .user_agent(format!(
+            "Tensorlake Cloud SDK/{}",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .default_headers(headers.clone())
+        .build()
+        .map_err(|error| SdkError::ClientError(error.to_string()))?;
     Ok(client)
 }
