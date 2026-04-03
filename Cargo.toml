@@ -21,9 +21,10 @@ flate2 = "1.0"
 futures = "0.3"
 hex = "0.4"
 pin-project-lite = "0.2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls", "stream"] }
+reqwest12 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
 reqwest-eventsource = "0.6"
-reqwest-middleware = { version = "0.4.2", features = ["json", "multipart"] }
+reqwest-middleware = { version = "0.5.1", features = ["json", "multipart", "query"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
